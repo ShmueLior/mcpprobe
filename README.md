@@ -126,6 +126,13 @@ Exit codes: `0` passed, `1` check failed (breaking change or lint findings), `2`
 The `McpProbe tool surface check` Action installs the same `McpProbe.Cli` version as the tag you pin, then runs `diff` and `lint`. It needs `actions/setup-dotnet` (a .NET 8 or .NET 10 SDK) and your server already built. Reports go to the job summary. Pin an exact release tag that includes the Action (0.3.0-preview or later):
 
 ```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 permissions:
   contents: read
 

@@ -162,7 +162,8 @@ if [[ -n "${MCPPROBE_SOURCE:-}" ]]; then
   if [[ "$source_arg" != *://* && -d "$source_arg" ]]; then
     source_arg=$(cd "$source_arg" && pwd)
   elif [[ "$source_arg" != *://* && -f "$source_arg" ]]; then
-    source_arg=$(cd "$(dirname "$source_arg")" && pwd)/$(basename "$source_arg")
+    # dotnet --source expects a folder of packages or a feed URL, not a nupkg path.
+    source_arg=$(cd "$(dirname "$source_arg")" && pwd)
   elif [[ "$source_arg" != *://* ]]; then
     die "NuGet source not found: $MCPPROBE_SOURCE"
   fi
