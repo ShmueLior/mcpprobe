@@ -240,9 +240,13 @@ public static class ToolLinter
             SplitName(tool.Name).FirstOrDefault(options.DestructiveNameTokens.Contains) is { } token)
         {
             var quoted = Printable.Text(token.ToLowerInvariant(), 40);
-            message = hints.DestructiveHint == false
-                ? $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but destructiveHint is false. Set destructiveHint to true, or rename the tool if it is safe."
-                : $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but readOnlyHint is true. Drop readOnlyHint, or rename the tool if it only reads.";
+            // With readOnlyHint true, "set destructiveHint to true" would only trade this for the read-only + destructive finding.
+            message = (hints.ReadOnlyHint, hints.DestructiveHint) switch
+            {
+                (true, false) => $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but readOnlyHint is true and destructiveHint is false. Drop readOnlyHint and set destructiveHint to true, or rename the tool if it only reads.",
+                (true, _) => $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but readOnlyHint is true. Drop readOnlyHint, or rename the tool if it only reads.",
+                _ => $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but destructiveHint is false. Set destructiveHint to true, or rename the tool if it is safe.",
+            };
         }
 
         if (message is not null)

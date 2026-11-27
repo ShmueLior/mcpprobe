@@ -101,9 +101,16 @@ public sealed class ToolLinterQualityTests
         var finding = Assert.Single(Rule(Surface("delete_file", annotations: """{"readOnlyHint":true}"""), "MCPP013"));
         Assert.Contains("readOnlyHint is true", finding.Message, StringComparison.Ordinal);
 
-        // Both explicit: one finding, the destructiveHint one.
+        Assert.DoesNotContain("Set destructiveHint to true", finding.Message, StringComparison.Ordinal);
+
+        // Both explicit: one finding that says to drop readOnlyHint, so following it can't lead to the
+        // read-only + destructive finding on the next run.
         var both = Assert.Single(Rule(Surface("delete_file", annotations: """{"readOnlyHint":true,"destructiveHint":false}"""), "MCPP013"));
-        Assert.Contains("destructiveHint is false", both.Message, StringComparison.Ordinal);
+        Assert.Contains("readOnlyHint is true and destructiveHint is false", both.Message, StringComparison.Ordinal);
+        Assert.Contains("Drop readOnlyHint and set destructiveHint to true", both.Message, StringComparison.Ordinal);
+
+        // Following that advice gives a clean result.
+        Assert.Empty(Rule(Surface("delete_file", annotations: """{"destructiveHint":true}"""), "MCPP013"));
     }
 
     [Fact]

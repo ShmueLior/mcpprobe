@@ -15,7 +15,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
-- Default `lint` can now fail on MCPP013-MCPP016 findings, in the CLI and in the GitHub Action and Azure Pipelines template (which run `lint` with `fail-on: warning` by default). To get 0.2 behavior back, use `--fail-on error` (Action: `fail-on: error`, Azure Pipelines: `failOn: error`), or turn the four rules off with `--rule MCPP013=none --rule MCPP014=none --rule MCPP015=none --rule MCPP016=none`. A description that only restates the tool name reports MCPP015 instead of MCPP002.
+- Default `lint` can now fail on MCPP013-MCPP016 findings, in the CLI and in the GitHub Action and Azure Pipelines template (which run `lint` with `fail-on: warning` by default). To get exactly the 0.2 behavior back, turn the four rules off with `--rule MCPP013=none --rule MCPP014=none --rule MCPP015=none --rule MCPP016=none`. `--fail-on error` (Action: `fail-on: error`, Azure Pipelines: `failOn: error`) is a looser option: MCPP001-MCPP007 warnings stop failing too. A description that only restates the tool name reports MCPP015 instead of MCPP002.
 - Changes to `format`, `uniqueItems`, `const` or `additionalProperties` that make an input tighter or an output looser (for example a new input `additionalProperties: false`, or an output that drops it) now fail the snapshot check. A changed `format` or `const` value fails on both sides. The `additionalProperties` rule also covers `unevaluatedProperties`, `additionalItems` and `unevaluatedItems`. In 0.2 these passed as unclassified "review by hand" changes. Snapshot files don't change.
 
 ## [0.2.0-preview] - 2026-11-27
