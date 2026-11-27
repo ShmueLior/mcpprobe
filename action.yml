@@ -1,0 +1,127 @@
+name: 'McpProbe tool surface check'
+description: >-
+  Install the McpProbe .NET CLI and run tool-surface diff and lint against an MCP
+  server over stdio or HTTP. Fails the job on breaking changes or lint findings.
+author: Lior Shmueli
+
+branding:
+  icon: check-square
+  color: blue
+
+inputs:
+  stdio:
+    description: >-
+      Start the server with this command line and talk to it over stdio, for
+      example "dotnet run --project src/MyServer -c Release". Pass exactly one of
+      stdio, http, or from-file.
+    required: false
+    default: ''
+  http:
+    description: >-
+      Connect to a server over HTTP (Streamable HTTP, falling back to SSE), for
+      example http://localhost:5000/mcp.
+    required: false
+    default: ''
+  from-file:
+    description: Read the current tool surface from a snapshot file instead of a server.
+    required: false
+    default: ''
+  baseline:
+    description: The committed snapshot to compare against (diff only).
+    required: false
+    default: mcp-tools.json
+  header:
+    description: >-
+      HTTP headers as 'Name: value', one per line. Only used with http. Do not
+      log these values; they often carry tokens.
+    required: false
+    default: ''
+  env:
+    description: Environment variables for the stdio server as NAME=value, one per line.
+    required: false
+    default: ''
+  cwd:
+    description: Working directory for the stdio server.
+    required: false
+    default: ''
+  timeout:
+    description: Seconds to wait for the server to start and list its tools.
+    required: false
+    default: '60'
+  diff:
+    description: Run mcpprobe diff against the baseline.
+    required: false
+    default: 'true'
+  lint:
+    description: Run mcpprobe lint.
+    required: false
+    default: 'true'
+  fail-on-non-breaking:
+    description: Also fail (exit 1) on non-breaking changes, so the snapshot stays up to date.
+    required: false
+    default: 'false'
+  fail-on:
+    description: Lowest lint severity that fails the job. error, warning, info, or none.
+    required: false
+    default: warning
+  nested:
+    description: Also lint nested object properties and array items, not just top-level parameters.
+    required: false
+    default: 'false'
+  rule:
+    description: Lint rule severity overrides, one RULE=severity per line, for example MCPP007=none.
+    required: false
+    default: ''
+  min-description-length:
+    description: Minimum tool description length for MCPP002. Leave empty to use the CLI default (20).
+    required: false
+    default: ''
+  version:
+    description: >-
+      Exact McpProbe.Cli version to install. Defaults to the same version as this
+      repository's package. Do not set this to latest.
+    required: false
+    default: '0.2.0-preview'
+  source:
+    description: >-
+      If set, the only NuGet source used to install McpProbe.Cli (a folder of
+      nupkgs, or a feed URL). Use this to install a just-packed build in CI.
+    required: false
+    default: ''
+
+outputs:
+  conclusion:
+    description: 'Outcome of the checks: passed, failed, or error.'
+    value: ${{ steps.mcpprobe.outputs.conclusion }}
+  diff-exit:
+    description: Exit code of mcpprobe diff. Empty if diff was skipped.
+    value: ${{ steps.mcpprobe.outputs.diff-exit }}
+  lint-exit:
+    description: Exit code of mcpprobe lint. Empty if lint was skipped.
+    value: ${{ steps.mcpprobe.outputs.lint-exit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run McpProbe
+      id: mcpprobe
+      shell: bash
+      env:
+        MCPPROBE_STDIO: ${{ inputs.stdio }}
+        MCPPROBE_HTTP: ${{ inputs.http }}
+        MCPPROBE_FROM_FILE: ${{ inputs.from-file }}
+        MCPPROBE_BASELINE: ${{ inputs.baseline }}
+        MCPPROBE_HEADER: ${{ inputs.header }}
+        MCPPROBE_ENV: ${{ inputs.env }}
+        MCPPROBE_CWD: ${{ inputs.cwd }}
+        MCPPROBE_TIMEOUT: ${{ inputs.timeout }}
+        MCPPROBE_DIFF: ${{ inputs.diff }}
+        MCPPROBE_LINT: ${{ inputs.lint }}
+        MCPPROBE_FAIL_ON_NON_BREAKING: ${{ inputs.fail-on-non-breaking }}
+        MCPPROBE_FAIL_ON: ${{ inputs.fail-on }}
+        MCPPROBE_NESTED: ${{ inputs.nested }}
+        MCPPROBE_RULE: ${{ inputs.rule }}
+        MCPPROBE_MIN_DESCRIPTION_LENGTH: ${{ inputs.min-description-length }}
+        MCPPROBE_VERSION: ${{ inputs.version }}
+        MCPPROBE_SOURCE: ${{ inputs.source }}
+      run: bash "$GITHUB_ACTION_PATH/action/run.sh"

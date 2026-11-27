@@ -109,27 +109,93 @@ Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, 
 
 ## CLI in CI
 
-```bash
-dotnet tool install --global McpProbe.Cli --prerelease
+Write a snapshot once and commit it, then check it in CI:
 
-mcpprobe snapshot --stdio "dotnet run --project src/MyServer" --out mcp-tools.json   # once, then commit
+```bash
+dotnet tool install --global McpProbe.Cli --version 0.2.0-preview
+
+mcpprobe snapshot --stdio "dotnet run --project src/MyServer" --out mcp-tools.json
 mcpprobe diff     --stdio "dotnet run --project src/MyServer" --baseline mcp-tools.json
 mcpprobe lint     --http https://localhost:5001/mcp --header "Authorization: Bearer $TOKEN"
 ```
 
-Exit codes: `0` passed, `1` check failed (breaking change or lint findings), `2` usage or connection error. The server's stderr is printed when it fails to start.
+Exit codes: `0` passed, `1` check failed (breaking change or lint findings), `2` usage or connection error. The server's stderr is printed when it fails to start. `diff` and `lint` also take `--from-file <snapshot>` to check a file without starting a server. Run `mcpprobe <command> --help` for every option.
 
-GitHub Actions step:
+### GitHub Actions
+
+The `McpProbe tool surface check` Action installs the same `McpProbe.Cli` version as the tag you pin, then runs `diff` and `lint`. It needs `actions/setup-dotnet` (a .NET 8 or .NET 10 SDK) and your server already built. Reports go to the job summary. Pin an exact release tag that includes the Action (0.3.0-preview or later):
 
 ```yaml
-- name: Check MCP tool surface
-  run: |
-    dotnet tool install --global McpProbe.Cli --prerelease
-    mcpprobe diff --stdio "dotnet run --project src/MyServer -c Release" --baseline mcp-tools.json
-    mcpprobe lint --stdio "dotnet run --project src/MyServer -c Release"
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - run: dotnet build -c Release
+      - name: Check MCP tool surface
+        uses: ShmueLior/mcpprobe@v0.3.0-preview
+        with:
+          stdio: dotnet run --no-build --project src/MyServer -c Release
+          baseline: mcp-tools.json
 ```
 
-`diff` and `lint` also take `--from-file <snapshot>` to check a file without starting a server. Run `mcpprobe <command> --help` for every option.
+Inputs follow the CLI: `stdio`, `http`, or `from-file` (exactly one), plus `baseline` (default `mcp-tools.json`), `header`, `env`, `cwd`, `timeout`, `diff`, `lint`, `fail-on-non-breaking`, `fail-on`, `nested`, `rule`, `min-description-length`, `version`, and `source`. Both `diff` and `lint` are on by default. The Action fails the step on a breaking change or a lint finding at or above `--fail-on` (default `warning`).
+
+### Azure Pipelines
+
+If your organization can add a GitHub service connection, use the step template in this repository (check out your own repo first; the template checks out McpProbe to run the same script as the Action):
+
+```yaml
+resources:
+  repositories:
+    - repository: mcpprobe
+      type: github
+      name: ShmueLior/mcpprobe
+      endpoint: GitHub
+      ref: refs/tags/v0.3.0-preview
+
+steps:
+  - checkout: self
+  - task: UseDotNet@2
+    inputs:
+      version: '10.x'
+  - script: dotnet build -c Release
+  - template: templates/azure-pipelines/mcpprobe.yml@mcpprobe
+    parameters:
+      stdio: 'dotnet run --no-build --project src/MyServer -c Release'
+      baseline: mcp-tools.json
+```
+
+The template needs bash (Git Bash on Windows). If you cannot reference the GitHub repo, install the tool and run the same commands yourself:
+
+```yaml
+- task: UseDotNet@2
+  inputs:
+    version: '10.x'
+- script: |
+    set -euo pipefail
+    tool_path="$(Agent.TempDirectory)/mcpprobe-cli"
+    dotnet tool install McpProbe.Cli --tool-path "$tool_path" --version 0.3.0-preview
+    export PATH="$tool_path:$PATH"
+    mcpprobe diff --stdio "dotnet run --no-build --project src/MyServer -c Release" --baseline mcp-tools.json
+    mcpprobe lint --stdio "dotnet run --no-build --project src/MyServer -c Release"
+  displayName: Check MCP tool surface
+```
 
 ## Snapshot file format
 

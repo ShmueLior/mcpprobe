@@ -1,0 +1,123 @@
+# Step template that installs a pinned McpProbe.Cli and runs diff and/or lint.
+# When you consume this from another repository, declare a GitHub resource and
+# check out your own repo first. The template checks out this repository so it
+# can run action/run.sh:
+#
+#   resources:
+#     repositories:
+#     - repository: mcpprobe
+#       type: github
+#       name: ShmueLior/mcpprobe
+#       endpoint: GitHub
+#       ref: refs/tags/v0.3.0-preview
+#
+#   steps:
+#   - checkout: self
+#   - template: templates/azure-pipelines/mcpprobe.yml@mcpprobe
+#     parameters:
+#       stdio: 'dotnet run --project src/MyServer -c Release'
+#       baseline: mcp-tools.json
+#
+# Requires bash (Git Bash on Windows) and a .NET 8 or .NET 10 SDK
+# (UseDotNet@2) already on PATH.
+parameters:
+- name: stdio
+  type: string
+  default: ''
+- name: http
+  type: string
+  default: ''
+- name: fromFile
+  type: string
+  default: ''
+- name: baseline
+  type: string
+  default: mcp-tools.json
+- name: header
+  type: string
+  default: ''
+- name: env
+  type: string
+  default: ''
+- name: cwd
+  type: string
+  default: ''
+- name: timeout
+  type: string
+  default: '60'
+- name: diff
+  type: boolean
+  default: true
+- name: lint
+  type: boolean
+  default: true
+- name: failOnNonBreaking
+  type: boolean
+  default: false
+- name: failOn
+  type: string
+  default: warning
+- name: nested
+  type: boolean
+  default: false
+- name: rule
+  type: string
+  default: ''
+- name: minDescriptionLength
+  type: string
+  default: ''
+- name: version
+  type: string
+  default: ''
+- name: source
+  type: string
+  default: ''
+- name: checkoutRepository
+  type: boolean
+  default: true
+- name: repositoryAlias
+  type: string
+  default: mcpprobe
+- name: actionPath
+  type: string
+  default: ''
+
+steps:
+- ${{ if parameters.checkoutRepository }}:
+  - checkout: ${{ parameters.repositoryAlias }}
+    path: mcpprobe-src
+    displayName: Checkout McpProbe (for action/run.sh)
+
+- bash: |
+    set -euo pipefail
+    if [ -n "${MCPPROBE_ACTION_PATH}" ]; then
+      script="${MCPPROBE_ACTION_PATH%/}/action/run.sh"
+    else
+      script="$(Pipeline.Workspace)/mcpprobe-src/action/run.sh"
+    fi
+    if [ ! -f "$script" ]; then
+      echo "error: could not find action/run.sh at $script. Check out ShmueLior/mcpprobe or set actionPath."
+      exit 2
+    fi
+    bash "$script"
+  displayName: Check MCP tool surface
+  workingDirectory: $(Build.SourcesDirectory)
+  env:
+    MCPPROBE_ACTION_PATH: ${{ parameters.actionPath }}
+    MCPPROBE_STDIO: ${{ parameters.stdio }}
+    MCPPROBE_HTTP: ${{ parameters.http }}
+    MCPPROBE_FROM_FILE: ${{ parameters.fromFile }}
+    MCPPROBE_BASELINE: ${{ parameters.baseline }}
+    MCPPROBE_HEADER: ${{ parameters.header }}
+    MCPPROBE_ENV: ${{ parameters.env }}
+    MCPPROBE_CWD: ${{ parameters.cwd }}
+    MCPPROBE_TIMEOUT: ${{ parameters.timeout }}
+    MCPPROBE_DIFF: ${{ parameters.diff }}
+    MCPPROBE_LINT: ${{ parameters.lint }}
+    MCPPROBE_FAIL_ON_NON_BREAKING: ${{ parameters.failOnNonBreaking }}
+    MCPPROBE_FAIL_ON: ${{ parameters.failOn }}
+    MCPPROBE_NESTED: ${{ parameters.nested }}
+    MCPPROBE_RULE: ${{ parameters.rule }}
+    MCPPROBE_MIN_DESCRIPTION_LENGTH: ${{ parameters.minDescriptionLength }}
+    MCPPROBE_VERSION: ${{ parameters.version }}
+    MCPPROBE_SOURCE: ${{ parameters.source }}

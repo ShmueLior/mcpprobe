@@ -22,6 +22,7 @@ Warnings are errors. Run the tests before you open a pull request.
 - Changes to breaking-change rules need a test in `ToolSurfaceComparerTests` for each direction (input and output).
 - Add a line to `CHANGELOG.md` under "Unreleased".
 - If you change the sample server's tools, update `samples/WeatherServer.Tests/mcp-tools.json` by running its tests with `MCPPROBE_UPDATE_SNAPSHOTS=1`.
+- When you bump the package version, also update the default `version` input in `action.yml` and the pinned tags in the README CI examples. `action/check-version.sh` (run in CI and release) checks the Action default against the project version.
 
 ## Bugs
 
