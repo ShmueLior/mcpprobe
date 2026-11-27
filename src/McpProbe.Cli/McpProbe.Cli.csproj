@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mcpprobe</ToolCommandName>
+    <PackageId>McpProbe.Cli</PackageId>
+    <RootNamespace>McpProbe.Cli</RootNamespace>
+    <RollForward>Major</RollForward>
+    <Description>mcpprobe: a CLI that connects to any MCP server over stdio or HTTP and checks its tool surface against a committed snapshot (breaking-change detection) and lint rules. Built for CI.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\McpProbe\McpProbe.csproj" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="McpProbe.Tests" />
+  </ItemGroup>
+
+</Project>
