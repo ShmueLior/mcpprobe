@@ -1,0 +1,257 @@
+#nullable enable
+McpProbe.Assertions.CallToolResultAssertions
+McpProbe.Assertions.CallToolResultAssertions.Failed(string? messageContaining = null) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasContent<TBlock>(System.Func<TBlock!, bool>? predicate = null) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasImageContent(string? mimeType = null) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasStructuredContent() -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasStructuredValue(string! path, bool expected) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasStructuredValue(string! path, double expected, double tolerance = 0) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasStructuredValue(string! path, long expected) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasStructuredValue(string! path, string? expected) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.HasTextContent(string? containing = null, System.StringComparison comparison = System.StringComparison.Ordinal) -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.CallToolResultAssertions.Result.get -> ModelContextProtocol.Protocol.CallToolResult!
+McpProbe.Assertions.CallToolResultAssertions.Succeeded() -> McpProbe.Assertions.CallToolResultAssertions!
+McpProbe.Assertions.GetPromptResultAssertions
+McpProbe.Assertions.GetPromptResultAssertions.HasMessageCount(int expected) -> McpProbe.Assertions.GetPromptResultAssertions!
+McpProbe.Assertions.GetPromptResultAssertions.HasTextContent(string! containing, ModelContextProtocol.Protocol.Role? role = null) -> McpProbe.Assertions.GetPromptResultAssertions!
+McpProbe.Assertions.GetPromptResultAssertions.Result.get -> ModelContextProtocol.Protocol.GetPromptResult!
+McpProbe.Assertions.PromptAssertions
+McpProbe.Assertions.PromptAssertions.HasArgument(string! name, bool? required = null) -> McpProbe.Assertions.PromptAssertions!
+McpProbe.Assertions.PromptAssertions.HasDescription(string? containing = null) -> McpProbe.Assertions.PromptAssertions!
+McpProbe.Assertions.PromptAssertions.Prompt.get -> ModelContextProtocol.Protocol.Prompt!
+McpProbe.Assertions.PromptListAssertions
+McpProbe.Assertions.PromptListAssertions.ContainsPrompt(string! name) -> McpProbe.Assertions.PromptAssertions!
+McpProbe.Assertions.PromptListAssertions.Prompts.get -> System.Collections.Generic.IReadOnlyList<ModelContextProtocol.Protocol.Prompt!>!
+McpProbe.Assertions.ReadResourceResultAssertions
+McpProbe.Assertions.ReadResourceResultAssertions.HasMimeType(string! expected) -> McpProbe.Assertions.ReadResourceResultAssertions!
+McpProbe.Assertions.ReadResourceResultAssertions.HasTextContent(string? containing = null) -> McpProbe.Assertions.ReadResourceResultAssertions!
+McpProbe.Assertions.ReadResourceResultAssertions.Result.get -> ModelContextProtocol.Protocol.ReadResourceResult!
+McpProbe.Assertions.ResourceAssertions
+McpProbe.Assertions.ResourceAssertions.HasDescription() -> McpProbe.Assertions.ResourceAssertions!
+McpProbe.Assertions.ResourceAssertions.HasMimeType(string! expected) -> McpProbe.Assertions.ResourceAssertions!
+McpProbe.Assertions.ResourceAssertions.HasName(string! expected) -> McpProbe.Assertions.ResourceAssertions!
+McpProbe.Assertions.ResourceAssertions.Resource.get -> ModelContextProtocol.Protocol.Resource!
+McpProbe.Assertions.ResourceListAssertions
+McpProbe.Assertions.ResourceListAssertions.ContainsResource(string! uri) -> McpProbe.Assertions.ResourceAssertions!
+McpProbe.Assertions.ResourceListAssertions.Resources.get -> System.Collections.Generic.IReadOnlyList<ModelContextProtocol.Protocol.Resource!>!
+McpProbe.Assertions.ToolAssertions
+McpProbe.Assertions.ToolAssertions.DoesNotHaveParameter(string! name) -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolAssertions.HasDescription(string? containing = null) -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolAssertions.HasDestructiveHint(bool expected = true) -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolAssertions.HasOutputSchema() -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolAssertions.HasParameter(string! name, string? type = null, bool? required = null) -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolAssertions.HasReadOnlyHint(bool expected = true) -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolAssertions.Tool.get -> ModelContextProtocol.Protocol.Tool!
+McpProbe.Assertions.ToolListAssertions
+McpProbe.Assertions.ToolListAssertions.ContainsTool(string! name) -> McpProbe.Assertions.ToolAssertions!
+McpProbe.Assertions.ToolListAssertions.DoesNotContainTool(string! name) -> McpProbe.Assertions.ToolListAssertions!
+McpProbe.Assertions.ToolListAssertions.HasCount(int expected) -> McpProbe.Assertions.ToolListAssertions!
+McpProbe.Assertions.ToolListAssertions.PassesLint(McpProbe.Linting.LintOptions? options = null) -> McpProbe.Linting.LintReport!
+McpProbe.Assertions.ToolListAssertions.Tools.get -> System.Collections.Generic.IReadOnlyList<ModelContextProtocol.Protocol.Tool!>!
+McpProbe.Linting.LintFinding
+McpProbe.Linting.LintFinding.<Clone>$() -> McpProbe.Linting.LintFinding!
+McpProbe.Linting.LintFinding.Deconstruct(out string! RuleId, out McpProbe.Linting.LintSeverity Severity, out string! ToolName, out string? ParameterName, out string! Message) -> void
+McpProbe.Linting.LintFinding.Equals(McpProbe.Linting.LintFinding? other) -> bool
+McpProbe.Linting.LintFinding.LintFinding(string! RuleId, McpProbe.Linting.LintSeverity Severity, string! ToolName, string? ParameterName, string! Message) -> void
+McpProbe.Linting.LintFinding.Message.get -> string!
+McpProbe.Linting.LintFinding.Message.init -> void
+McpProbe.Linting.LintFinding.ParameterName.get -> string?
+McpProbe.Linting.LintFinding.ParameterName.init -> void
+McpProbe.Linting.LintFinding.RuleId.get -> string!
+McpProbe.Linting.LintFinding.RuleId.init -> void
+McpProbe.Linting.LintFinding.Severity.get -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintFinding.Severity.init -> void
+McpProbe.Linting.LintFinding.ToolName.get -> string!
+McpProbe.Linting.LintFinding.ToolName.init -> void
+McpProbe.Linting.LintOptions
+McpProbe.Linting.LintOptions.FailOn.get -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintOptions.FailOn.set -> void
+McpProbe.Linting.LintOptions.LintOptions() -> void
+McpProbe.Linting.LintOptions.MinToolDescriptionLength.get -> int
+McpProbe.Linting.LintOptions.MinToolDescriptionLength.set -> void
+McpProbe.Linting.LintOptions.Severities.get -> System.Collections.Generic.IDictionary<string!, McpProbe.Linting.LintSeverity>!
+McpProbe.Linting.LintOptions.VagueParameterNames.get -> System.Collections.Generic.ISet<string!>!
+McpProbe.Linting.LintReport
+McpProbe.Linting.LintReport.FailOn.get -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintReport.Failed.get -> bool
+McpProbe.Linting.LintReport.Findings.get -> System.Collections.Generic.IReadOnlyList<McpProbe.Linting.LintFinding!>!
+McpProbe.Linting.LintReport.ThrowIfFailed() -> void
+McpProbe.Linting.LintReport.ToReport() -> string!
+McpProbe.Linting.LintRule
+McpProbe.Linting.LintRule.<Clone>$() -> McpProbe.Linting.LintRule!
+McpProbe.Linting.LintRule.Deconstruct(out string! Id, out string! Title, out McpProbe.Linting.LintSeverity DefaultSeverity) -> void
+McpProbe.Linting.LintRule.DefaultSeverity.get -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintRule.DefaultSeverity.init -> void
+McpProbe.Linting.LintRule.Equals(McpProbe.Linting.LintRule? other) -> bool
+McpProbe.Linting.LintRule.Id.get -> string!
+McpProbe.Linting.LintRule.Id.init -> void
+McpProbe.Linting.LintRule.LintRule(string! Id, string! Title, McpProbe.Linting.LintSeverity DefaultSeverity) -> void
+McpProbe.Linting.LintRule.Title.get -> string!
+McpProbe.Linting.LintRule.Title.init -> void
+McpProbe.Linting.LintRules
+McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintSeverity.Error = 3 -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintSeverity.Info = 1 -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintSeverity.None = 0 -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.LintSeverity.Warning = 2 -> McpProbe.Linting.LintSeverity
+McpProbe.Linting.ToolLinter
+McpProbe.McpAssert
+McpProbe.McpProbeAssertionException
+McpProbe.McpProbeAssertionException.McpProbeAssertionException() -> void
+McpProbe.McpProbeAssertionException.McpProbeAssertionException(string! message) -> void
+McpProbe.McpProbeAssertionException.McpProbeAssertionException(string! message, System.Exception! innerException) -> void
+McpProbe.McpProbeHost
+McpProbe.McpProbeHost.Client.get -> ModelContextProtocol.Client.McpClient!
+McpProbe.McpProbeHost.DisposeAsync() -> System.Threading.Tasks.ValueTask
+McpProbe.McpProbeHost.LintToolsAsync(McpProbe.Linting.LintOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<McpProbe.Linting.LintReport!>!
+McpProbe.McpProbeHost.Server.get -> ModelContextProtocol.Server.McpServer!
+McpProbe.McpProbeHost.Services.get -> System.IServiceProvider!
+McpProbe.McpProbeHost.VerifyToolSnapshotAsync(string! snapshotPath = "mcp-tools.json", McpProbe.Snapshots.SnapshotOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string! callerFilePath = "") -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurfaceDiff!>!
+McpProbe.McpProbeHostOptions
+McpProbe.McpProbeHostOptions.ClientOptions.get -> ModelContextProtocol.Client.McpClientOptions?
+McpProbe.McpProbeHostOptions.ClientOptions.set -> void
+McpProbe.McpProbeHostOptions.ConfigureServer.get -> System.Action<ModelContextProtocol.Server.McpServerOptions!>?
+McpProbe.McpProbeHostOptions.ConfigureServer.set -> void
+McpProbe.McpProbeHostOptions.ConfigureServices.get -> System.Action<Microsoft.Extensions.DependencyInjection.IServiceCollection!>?
+McpProbe.McpProbeHostOptions.ConfigureServices.set -> void
+McpProbe.McpProbeHostOptions.LoggerFactory.get -> Microsoft.Extensions.Logging.ILoggerFactory?
+McpProbe.McpProbeHostOptions.LoggerFactory.set -> void
+McpProbe.McpProbeHostOptions.McpProbeHostOptions() -> void
+McpProbe.Snapshots.ChangeSeverity
+McpProbe.Snapshots.ChangeSeverity.Breaking = 1 -> McpProbe.Snapshots.ChangeSeverity
+McpProbe.Snapshots.ChangeSeverity.NonBreaking = 0 -> McpProbe.Snapshots.ChangeSeverity
+McpProbe.Snapshots.McpProbeSnapshotException
+McpProbe.Snapshots.McpProbeSnapshotException.Diff.get -> McpProbe.Snapshots.ToolSurfaceDiff?
+McpProbe.Snapshots.McpProbeSnapshotException.McpProbeSnapshotException() -> void
+McpProbe.Snapshots.McpProbeSnapshotException.McpProbeSnapshotException(string! message) -> void
+McpProbe.Snapshots.McpProbeSnapshotException.McpProbeSnapshotException(string! message, System.Exception! innerException) -> void
+McpProbe.Snapshots.McpProbeSnapshotException.SnapshotPath.get -> string?
+McpProbe.Snapshots.SnapshotOptions
+McpProbe.Snapshots.SnapshotOptions.CreateMissing.get -> bool?
+McpProbe.Snapshots.SnapshotOptions.CreateMissing.set -> void
+McpProbe.Snapshots.SnapshotOptions.Directory.get -> string?
+McpProbe.Snapshots.SnapshotOptions.Directory.set -> void
+McpProbe.Snapshots.SnapshotOptions.FailOnNonBreakingChanges.get -> bool
+McpProbe.Snapshots.SnapshotOptions.FailOnNonBreakingChanges.set -> void
+McpProbe.Snapshots.SnapshotOptions.Log.get -> System.Action<string!>?
+McpProbe.Snapshots.SnapshotOptions.Log.set -> void
+McpProbe.Snapshots.SnapshotOptions.SnapshotOptions() -> void
+McpProbe.Snapshots.SnapshotOptions.Update.get -> bool?
+McpProbe.Snapshots.SnapshotOptions.Update.set -> void
+McpProbe.Snapshots.ToolContract
+McpProbe.Snapshots.ToolContract.Annotations.get -> McpProbe.Snapshots.ToolContractAnnotations?
+McpProbe.Snapshots.ToolContract.Description.get -> string?
+McpProbe.Snapshots.ToolContract.InputSchema.get -> System.Text.Json.JsonElement
+McpProbe.Snapshots.ToolContract.Name.get -> string!
+McpProbe.Snapshots.ToolContract.OutputSchema.get -> System.Text.Json.JsonElement?
+McpProbe.Snapshots.ToolContract.Title.get -> string?
+McpProbe.Snapshots.ToolContractAnnotations
+McpProbe.Snapshots.ToolContractAnnotations.<Clone>$() -> McpProbe.Snapshots.ToolContractAnnotations!
+McpProbe.Snapshots.ToolContractAnnotations.Deconstruct(out bool? ReadOnlyHint, out bool? DestructiveHint, out bool? IdempotentHint, out bool? OpenWorldHint) -> void
+McpProbe.Snapshots.ToolContractAnnotations.DestructiveHint.get -> bool?
+McpProbe.Snapshots.ToolContractAnnotations.DestructiveHint.init -> void
+McpProbe.Snapshots.ToolContractAnnotations.Equals(McpProbe.Snapshots.ToolContractAnnotations? other) -> bool
+McpProbe.Snapshots.ToolContractAnnotations.IdempotentHint.get -> bool?
+McpProbe.Snapshots.ToolContractAnnotations.IdempotentHint.init -> void
+McpProbe.Snapshots.ToolContractAnnotations.OpenWorldHint.get -> bool?
+McpProbe.Snapshots.ToolContractAnnotations.OpenWorldHint.init -> void
+McpProbe.Snapshots.ToolContractAnnotations.ReadOnlyHint.get -> bool?
+McpProbe.Snapshots.ToolContractAnnotations.ReadOnlyHint.init -> void
+McpProbe.Snapshots.ToolContractAnnotations.ToolContractAnnotations(bool? ReadOnlyHint, bool? DestructiveHint, bool? IdempotentHint, bool? OpenWorldHint) -> void
+McpProbe.Snapshots.ToolSnapshot
+McpProbe.Snapshots.ToolSurface
+McpProbe.Snapshots.ToolSurface.ToJson() -> string!
+McpProbe.Snapshots.ToolSurface.Tools.get -> System.Collections.Generic.IReadOnlyList<McpProbe.Snapshots.ToolContract!>!
+McpProbe.Snapshots.ToolSurfaceChange
+McpProbe.Snapshots.ToolSurfaceChange.<Clone>$() -> McpProbe.Snapshots.ToolSurfaceChange!
+McpProbe.Snapshots.ToolSurfaceChange.Deconstruct(out string! ToolName, out string? Path, out McpProbe.Snapshots.ToolSurfaceChangeKind Kind, out McpProbe.Snapshots.ChangeSeverity Severity, out string! Message) -> void
+McpProbe.Snapshots.ToolSurfaceChange.Equals(McpProbe.Snapshots.ToolSurfaceChange? other) -> bool
+McpProbe.Snapshots.ToolSurfaceChange.IsBreaking.get -> bool
+McpProbe.Snapshots.ToolSurfaceChange.Kind.get -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChange.Kind.init -> void
+McpProbe.Snapshots.ToolSurfaceChange.Message.get -> string!
+McpProbe.Snapshots.ToolSurfaceChange.Message.init -> void
+McpProbe.Snapshots.ToolSurfaceChange.Path.get -> string?
+McpProbe.Snapshots.ToolSurfaceChange.Path.init -> void
+McpProbe.Snapshots.ToolSurfaceChange.Severity.get -> McpProbe.Snapshots.ChangeSeverity
+McpProbe.Snapshots.ToolSurfaceChange.Severity.init -> void
+McpProbe.Snapshots.ToolSurfaceChange.ToolName.get -> string!
+McpProbe.Snapshots.ToolSurfaceChange.ToolName.init -> void
+McpProbe.Snapshots.ToolSurfaceChange.ToolSurfaceChange(string! ToolName, string? Path, McpProbe.Snapshots.ToolSurfaceChangeKind Kind, McpProbe.Snapshots.ChangeSeverity Severity, string! Message) -> void
+McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.AnnotationsChanged = 4 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.BecameOptional = 8 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.BecameRequired = 7 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.DescriptionChanged = 3 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.EnumChanged = 10 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.KeywordChanged = 13 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.OutputSchemaAdded = 11 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.OutputSchemaRemoved = 12 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.PropertyAdded = 5 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.PropertyRemoved = 6 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.TitleChanged = 2 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.ToolAdded = 0 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.ToolRemoved = 1 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.TypeChanged = 9 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceComparer
+McpProbe.Snapshots.ToolSurfaceDiff
+McpProbe.Snapshots.ToolSurfaceDiff.BreakingChanges.get -> System.Collections.Generic.IEnumerable<McpProbe.Snapshots.ToolSurfaceChange!>!
+McpProbe.Snapshots.ToolSurfaceDiff.Changes.get -> System.Collections.Generic.IReadOnlyList<McpProbe.Snapshots.ToolSurfaceChange!>!
+McpProbe.Snapshots.ToolSurfaceDiff.HasBreakingChanges.get -> bool
+McpProbe.Snapshots.ToolSurfaceDiff.HasChanges.get -> bool
+McpProbe.Snapshots.ToolSurfaceDiff.NonBreakingChanges.get -> System.Collections.Generic.IEnumerable<McpProbe.Snapshots.ToolSurfaceChange!>!
+McpProbe.Snapshots.ToolSurfaceDiff.ToReport() -> string!
+const McpProbe.Snapshots.SnapshotOptions.UpdateEnvironmentVariable = "MCPPROBE_UPDATE_SNAPSHOTS" -> string!
+const McpProbe.Snapshots.ToolSnapshot.DefaultFileName = "mcp-tools.json" -> string!
+const McpProbe.Snapshots.ToolSurface.CurrentFormatVersion = 1 -> int
+override McpProbe.Linting.LintFinding.Equals(object? obj) -> bool
+override McpProbe.Linting.LintFinding.GetHashCode() -> int
+override McpProbe.Linting.LintFinding.ToString() -> string!
+override McpProbe.Linting.LintReport.ToString() -> string!
+override McpProbe.Linting.LintRule.Equals(object? obj) -> bool
+override McpProbe.Linting.LintRule.GetHashCode() -> int
+override McpProbe.Linting.LintRule.ToString() -> string!
+override McpProbe.Snapshots.ToolContractAnnotations.Equals(object? obj) -> bool
+override McpProbe.Snapshots.ToolContractAnnotations.GetHashCode() -> int
+override McpProbe.Snapshots.ToolContractAnnotations.ToString() -> string!
+override McpProbe.Snapshots.ToolSurfaceChange.Equals(object? obj) -> bool
+override McpProbe.Snapshots.ToolSurfaceChange.GetHashCode() -> int
+override McpProbe.Snapshots.ToolSurfaceChange.ToString() -> string!
+override McpProbe.Snapshots.ToolSurfaceDiff.ToString() -> string!
+static McpProbe.Linting.LintFinding.operator !=(McpProbe.Linting.LintFinding? left, McpProbe.Linting.LintFinding? right) -> bool
+static McpProbe.Linting.LintFinding.operator ==(McpProbe.Linting.LintFinding? left, McpProbe.Linting.LintFinding? right) -> bool
+static McpProbe.Linting.LintRule.operator !=(McpProbe.Linting.LintRule? left, McpProbe.Linting.LintRule? right) -> bool
+static McpProbe.Linting.LintRule.operator ==(McpProbe.Linting.LintRule? left, McpProbe.Linting.LintRule? right) -> bool
+static McpProbe.Linting.LintRules.All.get -> System.Collections.Generic.IReadOnlyList<McpProbe.Linting.LintRule!>!
+static McpProbe.Linting.ToolLinter.Lint(McpProbe.Snapshots.ToolSurface! surface, McpProbe.Linting.LintOptions? options = null) -> McpProbe.Linting.LintReport!
+static McpProbe.Linting.ToolLinter.Lint(System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientTool!>! tools, McpProbe.Linting.LintOptions? options = null) -> McpProbe.Linting.LintReport!
+static McpProbe.Linting.ToolLinter.Lint(System.Collections.Generic.IEnumerable<ModelContextProtocol.Protocol.Tool!>! tools, McpProbe.Linting.LintOptions? options = null) -> McpProbe.Linting.LintReport!
+static McpProbe.McpAssert.That(ModelContextProtocol.Client.McpClientTool! tool) -> McpProbe.Assertions.ToolAssertions!
+static McpProbe.McpAssert.That(ModelContextProtocol.Protocol.CallToolResult! result) -> McpProbe.Assertions.CallToolResultAssertions!
+static McpProbe.McpAssert.That(ModelContextProtocol.Protocol.GetPromptResult! result) -> McpProbe.Assertions.GetPromptResultAssertions!
+static McpProbe.McpAssert.That(ModelContextProtocol.Protocol.ReadResourceResult! result) -> McpProbe.Assertions.ReadResourceResultAssertions!
+static McpProbe.McpAssert.That(System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientPrompt!>! prompts) -> McpProbe.Assertions.PromptListAssertions!
+static McpProbe.McpAssert.That(System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientResource!>! resources) -> McpProbe.Assertions.ResourceListAssertions!
+static McpProbe.McpAssert.That(System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientTool!>! tools) -> McpProbe.Assertions.ToolListAssertions!
+static McpProbe.McpAssert.That(System.Collections.Generic.IEnumerable<ModelContextProtocol.Protocol.Tool!>! tools) -> McpProbe.Assertions.ToolListAssertions!
+static McpProbe.McpProbeHost.StartAsync(System.Action<Microsoft.Extensions.DependencyInjection.IMcpServerBuilder!>! configureServer, McpProbe.McpProbeHostOptions? options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<McpProbe.McpProbeHost!>!
+static McpProbe.McpProbeHost.StartAsync(System.Action<Microsoft.Extensions.DependencyInjection.IMcpServerBuilder!>! configureServer, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<McpProbe.McpProbeHost!>!
+static McpProbe.Snapshots.ToolContractAnnotations.operator !=(McpProbe.Snapshots.ToolContractAnnotations? left, McpProbe.Snapshots.ToolContractAnnotations? right) -> bool
+static McpProbe.Snapshots.ToolContractAnnotations.operator ==(McpProbe.Snapshots.ToolContractAnnotations? left, McpProbe.Snapshots.ToolContractAnnotations? right) -> bool
+static McpProbe.Snapshots.ToolSnapshot.GetReceivedPath(string! snapshotPath) -> string!
+static McpProbe.Snapshots.ToolSnapshot.Verify(McpProbe.Snapshots.ToolSurface! current, string! snapshotPath = "mcp-tools.json", McpProbe.Snapshots.SnapshotOptions? options = null, string! callerFilePath = "") -> McpProbe.Snapshots.ToolSurfaceDiff!
+static McpProbe.Snapshots.ToolSnapshot.VerifyAsync(ModelContextProtocol.Client.McpClient! client, string! snapshotPath = "mcp-tools.json", McpProbe.Snapshots.SnapshotOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string! callerFilePath = "") -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurfaceDiff!>!
+static McpProbe.Snapshots.ToolSurface.CaptureAsync(ModelContextProtocol.Client.McpClient! client, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurface!>!
+static McpProbe.Snapshots.ToolSurface.FromClientTools(System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientTool!>! tools) -> McpProbe.Snapshots.ToolSurface!
+static McpProbe.Snapshots.ToolSurface.FromTools(System.Collections.Generic.IEnumerable<ModelContextProtocol.Protocol.Tool!>! tools) -> McpProbe.Snapshots.ToolSurface!
+static McpProbe.Snapshots.ToolSurface.Parse(string! json) -> McpProbe.Snapshots.ToolSurface!
+static McpProbe.Snapshots.ToolSurfaceChange.operator !=(McpProbe.Snapshots.ToolSurfaceChange? left, McpProbe.Snapshots.ToolSurfaceChange? right) -> bool
+static McpProbe.Snapshots.ToolSurfaceChange.operator ==(McpProbe.Snapshots.ToolSurfaceChange? left, McpProbe.Snapshots.ToolSurfaceChange? right) -> bool
+static McpProbe.Snapshots.ToolSurfaceComparer.Compare(McpProbe.Snapshots.ToolSurface! baseline, McpProbe.Snapshots.ToolSurface! current) -> McpProbe.Snapshots.ToolSurfaceDiff!
+static readonly McpProbe.Linting.LintRules.InconsistentParameterNaming -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.InconsistentToolNaming -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.InvalidToolName -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.ParameterMissingDescription -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.ToolDescriptionTooShort -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.ToolMissingDescription -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.VagueParameterName -> McpProbe.Linting.LintRule!

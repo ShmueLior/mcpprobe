@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <PackageId>McpProbe</PackageId>
+    <Description>Test kit for MCP servers built with the official ModelContextProtocol C# SDK: an in-memory host, assertions for tools, prompts and resources, tool-surface snapshots with breaking-change detection, and lint rules for tool descriptions and parameter names.</Description>
+    <RootNamespace>McpProbe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="McpProbe.Tests" />
+    <!-- The tool package ships its own copy of McpProbe.dll, so the two always match. -->
+    <InternalsVisibleTo Include="McpProbe.Cli" />
+  </ItemGroup>
+
+</Project>
