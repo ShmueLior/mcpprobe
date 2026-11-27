@@ -68,6 +68,9 @@ jobs:
           echo "Publishing version $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Check Action version matches the project
+        run: bash action/check-version.sh
+
       - name: Restore
         run: dotnet restore
 

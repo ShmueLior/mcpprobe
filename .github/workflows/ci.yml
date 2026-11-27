@@ -41,8 +41,12 @@ jobs:
         run: dotnet test --solution McpProbe.slnx -c Release --no-build
 
       - name: Pack
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
         run: dotnet pack -c Release --no-build -o artifacts
+
+      - name: Check Action version matches the project
+        if: matrix.os == 'ubuntu-latest'
+        run: bash action/check-version.sh
 
       - name: Smoke test the CLI against the sample server
         if: matrix.os == 'ubuntu-latest'
@@ -52,6 +56,14 @@ jobs:
             --baseline samples/WeatherServer.Tests/mcp-tools.json
           dotnet src/McpProbe.Cli/bin/Release/net10.0/McpProbe.Cli.dll lint \
             --stdio "dotnet samples/WeatherServer/bin/Release/net10.0/WeatherServer.dll"
+
+      - name: Check MCP tool surface (this Action)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
+        uses: ./
+        with:
+          source: artifacts
+          stdio: dotnet samples/WeatherServer/bin/Release/net10.0/WeatherServer.dll
+          baseline: samples/WeatherServer.Tests/mcp-tools.json
 
       - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest'
