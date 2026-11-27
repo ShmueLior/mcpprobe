@@ -15,12 +15,20 @@ namespace McpProbe.Snapshots;
 /// </para>
 /// <para>
 /// Non-breaking: added tools, optional parameters and output properties, description, title and annotation changes,
-/// and widened input types. Other JSON Schema keywords (<c>minimum</c>, <c>pattern</c>, <c>$ref</c> and so on) are
+/// and widened input types. Other JSON Schema keywords (<c>minimum</c>, <c>pattern</c> and so on) are
 /// reported as <see cref="ToolSurfaceChangeKind.KeywordChanged"/> without being classified.
+/// </para>
+/// <para>
+/// Local <c>$ref</c>s (<c>#/$defs/...</c>, <c>#/definitions/...</c>, <c>#/properties/...</c>) are followed, so a change inside a
+/// referenced schema is classified like an inline one, at the path where it's used. Other refs are compared as plain keywords.
 /// </para>
 /// </remarks>
 public static class ToolSurfaceComparer
 {
+    // Schemas whose refs fan out (each def used several times by the next) grow exponentially when expanded.
+    // Past this many expansions per schema, refs are compared as plain keywords, like before refs were followed.
+    private const int MaxRefExpansions = 1000;
+
     private static readonly HashSet<string> s_handledKeywords = new(StringComparer.Ordinal)
     {
         "type", "properties", "required", "enum", "items", "description",
@@ -83,7 +91,7 @@ public static class ToolSurfaceComparer
         CompareAnnotations(tool, old.Annotations, cur.Annotations, changes);
 
         var context = new Context(tool, changes);
-        CompareSchema(context, Side.Input, string.Empty, JsonSchemaReader.FromElement(old.InputSchema), JsonSchemaReader.FromElement(cur.InputSchema));
+        CompareRoot(context, Side.Input, JsonSchemaReader.FromElement(old.InputSchema), JsonSchemaReader.FromElement(cur.InputSchema));
 
         switch (old.OutputSchema, cur.OutputSchema)
         {
@@ -96,9 +104,19 @@ public static class ToolSurfaceComparer
                 changes.Add(new(tool, "output", ToolSurfaceChangeKind.OutputSchemaRemoved, ChangeSeverity.Breaking, "Output schema was removed."));
                 break;
             case ({ } o, { } c):
-                CompareSchema(context, Side.Output, string.Empty, JsonSchemaReader.FromElement(o), JsonSchemaReader.FromElement(c));
+                CompareRoot(context, Side.Output, JsonSchemaReader.FromElement(o), JsonSchemaReader.FromElement(c));
                 break;
         }
+    }
+
+    private static void CompareRoot(Context context, Side side, JsonNode? old, JsonNode? cur)
+    {
+        context.OldRoot = old;
+        context.CurRoot = cur;
+        // When every ref resolves, changes inside $defs show up where they're used, so don't report the raw keyword too.
+        context.SkipDefinitions = JsonSchemaReader.AllRefsResolve(old) && JsonSchemaReader.AllRefsResolve(cur);
+        context.RefExpansions = 0;
+        CompareSchema(context, side, string.Empty, old, cur);
     }
 
     private static void CompareAnnotations(string tool, ToolContractAnnotations? old, ToolContractAnnotations? cur, List<ToolSurfaceChange> changes)
@@ -126,6 +144,40 @@ public static class ToolSurfaceComparer
     }
 
     private static void CompareSchema(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
+    {
+        var oldIsRef = JsonSchemaReader.TryResolveRef(old, context.OldRoot, out var oldResolved, out var oldRef);
+        var curIsRef = JsonSchemaReader.TryResolveRef(cur, context.CurRoot, out var curResolved, out var curRef);
+        if ((!oldIsRef && !curIsRef) || context.RefExpansions >= MaxRefExpansions)
+        {
+            if (oldIsRef || curIsRef)
+            {
+                // A ref is left unexpanded, so report $defs changes at the root again (the root's keywords are compared last).
+                context.SkipDefinitions = false;
+            }
+
+            CompareResolved(context, side, path, old, cur);
+            return;
+        }
+
+        // Recursive schemas: if this pair of refs is already being compared further up, it's covered there.
+        if (!context.Expanding.Add((oldRef, curRef)))
+        {
+            return;
+        }
+
+        context.RefExpansions++;
+
+        try
+        {
+            CompareResolved(context, side, path, oldIsRef ? oldResolved : old, curIsRef ? curResolved : cur);
+        }
+        finally
+        {
+            context.Expanding.Remove((oldRef, curRef));
+        }
+    }
+
+    private static void CompareResolved(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
     {
         CompareType(context, side, path, old, cur);
         CompareEnum(context, side, path, old, cur);
@@ -286,6 +338,7 @@ public static class ToolSurfaceComparer
         var keys = (oldObj?.Select(p => p.Key) ?? [])
             .Union(curObj?.Select(p => p.Key) ?? [], StringComparer.Ordinal)
             .Where(k => !s_handledKeywords.Contains(k))
+            .Where(k => !(path.Length == 0 && context.SkipDefinitions && k is "$defs" or "definitions"))
             .OrderBy(k => k, StringComparer.Ordinal);
 
         foreach (var key in keys)
@@ -371,6 +424,17 @@ public static class ToolSurfaceComparer
 
     private sealed class Context(string tool, List<ToolSurfaceChange> changes)
     {
+        public JsonNode? OldRoot { get; set; }
+
+        public JsonNode? CurRoot { get; set; }
+
+        public bool SkipDefinitions { get; set; }
+
+        public int RefExpansions { get; set; }
+
+        /// <summary>The (baseline, current) ref pairs being compared on the current path.</summary>
+        public HashSet<(string? Old, string? Cur)> Expanding { get; } = [];
+
         public void Add(Side side, string path, ToolSurfaceChangeKind kind, ChangeSeverity severity, string message)
         {
             var prefix = side == Side.Input ? "input" : "output";

@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Snapshot diffs follow local `$ref`s (`#/$defs/...`, `#/definitions/...`, `#/properties/...`), so changes inside referenced schemas are classified like inline ones. Recursive schemas are handled.
 - Release workflow that publishes packages to nuget.org with Trusted Publishing.
 
 ## [0.1.0-preview] - 2026-11-27

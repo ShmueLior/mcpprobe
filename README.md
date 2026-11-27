@@ -67,6 +67,7 @@ public Task Tool_surface_matches_snapshot() => probe.VerifyToolSnapshotAsync();
 2. Later runs compare the live tool surface with the file:
    - **Breaking changes fail the test**: removed tool, removed parameter, newly required parameter, narrowed type or enum, and removed or narrowed output fields. A removed parameter that looks renamed gets a hint.
    - **Non-breaking changes pass**: added tools, optional parameters, descriptions, annotations, widened types. They are in the returned `ToolSurfaceDiff`, and `SnapshotOptions.Log` gets a report (for example `Log = output.WriteLine` with xUnit's `ITestOutputHelper`).
+   - Local `$ref`s (`#/$defs/...`, `#/definitions/...`, and the `#/properties/...` refs the C# SDK emits for recursive types) are followed, so a change inside a referenced schema is classified like an inline one.
    - Schema keywords McpProbe doesn't classify yet (such as `pattern` or `minimum`) are reported as non-breaking, marked "review by hand".
 3. On a failure, the current surface is written to `mcp-tools.received.json`. To accept the change, run with `MCPPROBE_UPDATE_SNAPSHOTS=1` (or set `SnapshotOptions.Update`), review the diff in git, and commit.
 
@@ -143,7 +144,8 @@ Tools are sorted by name and JSON keys are sorted, so diffs stay small. Comparis
 
 ## Limitations in 0.1
 
-- `$ref`/`$defs` aren't resolved; changes inside them are reported as unclassified keyword changes.
+- Only local `$ref`s are followed. Remote refs, `$anchor`/`$id` refs and `$dynamicRef` are compared as plain keywords, and so is `$defs` when such a ref is present.
+- `allOf`, `anyOf` and `oneOf` aren't walked; changes inside them are reported as unclassified keyword changes.
 - Constraint keywords (`minimum`, `maxLength`, `pattern`, ...) aren't classified as breaking or non-breaking.
 - Lint checks top-level parameters only.
 - The test suite in this repo uses xUnit v3. The quickstart was also run once by hand with NUnit 4, MSTest 4 and TUnit 1.87 against the packed library; those checks aren't part of CI yet.

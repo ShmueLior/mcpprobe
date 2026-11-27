@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -64,6 +65,106 @@ internal static class JsonSchemaReader
 
     public static JsonNode? Get(JsonNode? schema, string keyword) =>
         schema is JsonObject obj && obj.TryGetPropertyValue(keyword, out var node) ? node : null;
+
+    /// <summary>
+    /// Resolves a local <c>$ref</c> (a JSON pointer such as <c>#/$defs/address</c> or <c>#/properties/root</c>) against
+    /// <paramref name="root"/> and returns the schema to compare in its place: the target, with the ref's sibling
+    /// <c>description</c> and <c>title</c> on top, and other siblings only where the target doesn't set them.
+    /// Remote refs, anchors, broken pointers and ref chains that loop aren't resolved.
+    /// </summary>
+    /// <param name="schema">The schema that may hold a <c>$ref</c>.</param>
+    /// <param name="root">The root schema the pointer is relative to.</param>
+    /// <param name="resolved">The schema to use instead of <paramref name="schema"/>.</param>
+    /// <param name="reference">The ref as written, used to stop on recursive schemas.</param>
+    public static bool TryResolveRef(JsonNode? schema, JsonNode? root, out JsonNode? resolved, out string? reference)
+    {
+        resolved = null;
+        reference = GetString(schema, "$ref");
+        if (reference is null || !TryFindTarget(reference, root, out var target))
+        {
+            reference = null;
+            return false;
+        }
+
+        if (target is not JsonObject targetObj)
+        {
+            resolved = target?.DeepClone();
+            return true;
+        }
+
+        var result = (JsonObject)targetObj.DeepClone();
+        foreach (var (key, value) in (JsonObject)schema!)
+        {
+            if (key != "$ref" && (key is "description" or "title" || !result.ContainsKey(key)))
+            {
+                result[key] = value?.DeepClone();
+            }
+        }
+
+        resolved = result;
+        return true;
+    }
+
+    /// <summary>Whether every <c>$ref</c> in <paramref name="root"/> resolves with <see cref="TryResolveRef"/>.</summary>
+    public static bool AllRefsResolve(JsonNode? root)
+    {
+        return Walk(root);
+
+        bool Walk(JsonNode? node) => node switch
+        {
+            JsonObject obj => (GetString(obj, "$ref") is not { } reference || TryFindTarget(reference, root, out _)) && obj.All(p => Walk(p.Value)),
+            JsonArray array => array.All(Walk),
+            _ => true,
+        };
+    }
+
+    private static bool TryFindTarget(string reference, JsonNode? root, out JsonNode? target)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        target = null;
+        for (var r = reference; r is not null; r = GetString(target, "$ref"))
+        {
+            if (!seen.Add(r) || !TryFollowPointer(root, r, out target))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryFollowPointer(JsonNode? root, string reference, out JsonNode? target)
+    {
+        target = root;
+        if (reference == "#")
+        {
+            return true;
+        }
+
+        if (!reference.StartsWith("#/", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var raw in reference[2..].Split('/'))
+        {
+            var token = Uri.UnescapeDataString(raw).Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
+            switch (target)
+            {
+                case JsonObject obj when obj.TryGetPropertyValue(token, out var child):
+                    target = child;
+                    break;
+                case JsonArray array when int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var index) && index < array.Count:
+                    target = array[index];
+                    break;
+                default:
+                    target = null;
+                    return false;
+            }
+        }
+
+        return true;
+    }
 
     public static string FormatTypes(SortedSet<string>? types) =>
         types is null ? "any" : string.Join(" | ", types);
