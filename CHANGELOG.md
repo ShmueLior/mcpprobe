@@ -16,6 +16,10 @@ All notable changes to this project are documented here. The format is based on
 
 - A tighter input constraint (for example a lower `maximum` from `[Range]`) now fails the snapshot check. In 0.1 it passed as an unclassified "review by hand" change.
 
+### Fixed
+
+- `mcpprobe` could print only "Broken pipe" without the server's stderr when a stdio server exited right away. It now waits briefly for the stderr lines before reporting the error.
+
 ## [0.1.0-preview] - 2026-11-27
 
 ### Added

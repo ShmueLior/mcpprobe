@@ -221,6 +221,62 @@ public sealed class CliTests : IDisposable
     }
 
     [Fact]
+    public async Task Stdio_ServerThatExitsSilently_FailsWithoutWaitingLong()
+    {
+        SkipWithoutPosixShell();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var (exit, _, error) = await RunAsync("lint", "--stdio", "sh -c \"exit 3\"", "--timeout", "20");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.StartsWith("error: ", error, StringComparison.Ordinal);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), watch.Elapsed.ToString());
+    }
+
+    [Fact]
+    public async Task StderrBuffer_WaitsForLinesThatArriveLate()
+    {
+        // The SDK delivers stderr on a background thread; under load a line can arrive after the connect error.
+        var buffer = new StderrBuffer();
+        var late = Task.Run(async () =>
+        {
+            await Task.Delay(300, TestContext.Current.CancellationToken);
+            buffer.Add("late line");
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            buffer.Add("last line");
+        }, TestContext.Current.CancellationToken);
+
+        await buffer.WaitForLinesAsync(TestContext.Current.CancellationToken);
+        await late;
+
+        Assert.Equal("late line\nlast line", buffer.ToString());
+    }
+
+    [Fact]
+    public async Task StderrBuffer_StopsWaitingWhenNothingArrives_OrWhenLinesKeepComing()
+    {
+        var empty = new StderrBuffer();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await empty.WaitForLinesAsync(TestContext.Current.CancellationToken);
+        Assert.InRange(watch.Elapsed, TimeSpan.FromSeconds(1.9), TimeSpan.FromSeconds(10));
+
+        var chatty = new StderrBuffer();
+        using var stop = new CancellationTokenSource();
+        var writer = Task.Run(async () =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                chatty.Add("log");
+                await Task.Delay(50, CancellationToken.None);
+            }
+        }, CancellationToken.None);
+        watch.Restart();
+        await chatty.WaitForLinesAsync(TestContext.Current.CancellationToken);
+        await stop.CancelAsync();
+        await writer;
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), watch.Elapsed.ToString());
+    }
+
+    [Fact]
     public async Task Stdio_TimeoutIsReported()
     {
         SkipWithoutPosixShell();

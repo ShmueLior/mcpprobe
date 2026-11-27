@@ -123,6 +123,13 @@ internal sealed class ServerOptions
         }
         catch (Exception ex)
         {
+            if (ex is not OperationCanceledException && serverStderr.ProcessStarted)
+            {
+                // A server that exits right away often fails the first write with "Broken pipe" before
+                // its stderr lines have been delivered, so give them a moment to arrive.
+                await serverStderr.WaitForLinesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
             if (serverStderr.ToString() is { Length: > 0 } lines)
             {
                 await stderr.WriteLineAsync($"Server stderr (last lines):\n{CliApp.PrintableLines(lines.TrimEnd())}").ConfigureAwait(false);
