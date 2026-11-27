@@ -99,7 +99,7 @@ public static class ToolSnapshot
         ToolSurface baseline;
         try
         {
-            baseline = ToolSurface.Parse(File.ReadAllText(path));
+            baseline = ToolSurface.Parse(ReadFile(path));
         }
         catch (FormatException ex) when (!options.ResolveUpdate())
         {
@@ -116,7 +116,7 @@ public static class ToolSnapshot
 
         if (options.ResolveUpdate())
         {
-            if (diff.HasChanges || !string.Equals(File.ReadAllText(path), currentJson, StringComparison.Ordinal))
+            if (diff.HasChanges || !string.Equals(ReadFile(path), currentJson, StringComparison.Ordinal))
             {
                 WriteFile(path, currentJson);
             }
@@ -218,23 +218,44 @@ public static class ToolSnapshot
         try
         {
             File.WriteAllText(temporary, content);
-            for (var attempt = 1; ; attempt++)
-            {
-                try
-                {
-                    File.Move(temporary, path, overwrite: true);
-                    break;
-                }
-                catch (IOException) when (attempt < 5)
-                {
-                    // Windows refuses to replace a file another process has open; it's only read briefly.
-                    Thread.Sleep(50 * attempt);
-                }
-            }
+            WithRetry(() => File.Move(temporary, path, overwrite: true));
         }
         finally
         {
             DeleteIfExists(temporary);
+        }
+    }
+
+    /// <summary>
+    /// Reads with delete sharing, so another test process (one per target framework) can replace the file
+    /// while it is being read; Windows would otherwise refuse the replace.
+    /// </summary>
+    private static string ReadFile(string path)
+    {
+        string? content = null;
+        WithRetry(() =>
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            content = reader.ReadToEnd();
+        });
+        return content!;
+    }
+
+    /// <summary>Windows briefly locks a file while another process replaces it; retry a few times.</summary>
+    private static void WithRetry(Action action)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                action();
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && ex is not FileNotFoundException && attempt < 10)
+            {
+                Thread.Sleep(20 * attempt);
+            }
         }
     }
 

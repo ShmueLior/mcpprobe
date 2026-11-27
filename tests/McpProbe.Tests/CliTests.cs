@@ -175,11 +175,16 @@ public sealed class CliTests : IDisposable
         var (exit, _, error) = await RunAsync("lint", "--stdio", "definitely-not-a-real-command-mcpprobe", "--timeout", "20");
 
         Assert.Equal(ExitCodes.Error, exit);
-        Assert.StartsWith("error: Failed to connect transport.", error, StringComparison.Ordinal);
 
-        // The inner cause is the useful part; its wording comes from the OS, so only check that there is one.
-        var firstLine = error.Split('\n')[0];
-        Assert.True(firstLine.Length > "error: Failed to connect transport.".Length + 5, firstLine);
+        // On Windows the SDK starts the command through cmd.exe, so the server's stderr tail
+        // ("... is not recognized ...") comes first and the error is about the process exiting.
+        var errorLine = Assert.Single(error.Split('\n'), line => line.StartsWith("error: ", StringComparison.Ordinal));
+        if (!OperatingSystem.IsWindows())
+        {
+            // The inner cause is the useful part; its wording comes from the OS, so only check that there is one.
+            Assert.StartsWith("error: Failed to connect transport.", errorLine, StringComparison.Ordinal);
+            Assert.True(errorLine.Length > "error: Failed to connect transport.".Length + 5, errorLine);
+        }
     }
 
     [Fact]
