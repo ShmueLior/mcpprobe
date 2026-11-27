@@ -1,0 +1,121 @@
+{
+  "formatVersion": 1,
+  "tools": [
+    {
+      "name": "convert_temperature",
+      "description": "Converts a temperature between Celsius and Fahrenheit.",
+      "inputSchema": {
+        "properties": {
+          "degrees": {
+            "description": "The temperature to convert.",
+            "type": "number"
+          },
+          "from": {
+            "description": "The unit of the given temperature.",
+            "enum": [
+              "Celsius",
+              "Fahrenheit"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "degrees",
+          "from"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "idempotentHint": true,
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "get_alerts",
+      "description": "Lists active weather alerts for a city. Returns 'No active alerts' when there are none.",
+      "inputSchema": {
+        "properties": {
+          "city": {
+            "description": "City name, for example 'London'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "city"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "get_forecast",
+      "description": "Gets a daily weather forecast for a city. Use it when the user asks about upcoming weather.",
+      "inputSchema": {
+        "properties": {
+          "city": {
+            "description": "City name, for example 'Paris' or 'Tel Aviv'.",
+            "type": "string"
+          },
+          "days": {
+            "default": 3,
+            "description": "Number of days to forecast, from 1 to 7.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "city"
+        ],
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "city": {
+            "description": "The city the forecast is for.",
+            "type": "string"
+          },
+          "days": {
+            "description": "One entry per day, starting tomorrow.",
+            "items": {
+              "properties": {
+                "day": {
+                  "description": "Days from today, starting at 1.",
+                  "type": "integer"
+                },
+                "high": {
+                  "description": "High temperature in °C.",
+                  "type": "integer"
+                },
+                "low": {
+                  "description": "Low temperature in °C.",
+                  "type": "integer"
+                },
+                "summary": {
+                  "description": "Short summary, for example 'Sunny'.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "day",
+                "high",
+                "low",
+                "summary"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "city",
+          "days"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    }
+  ]
+}
