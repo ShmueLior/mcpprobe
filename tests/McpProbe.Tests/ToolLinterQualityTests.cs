@@ -126,7 +126,6 @@ public sealed class ToolLinterQualityTests
     [Theory]
     [InlineData("Searches orders. Returns JSON with one entry per order.")]
     [InlineData("Searches orders and returns structured content for each match.")]
-    [InlineData("Searches orders. Returns an object with the totals.")]
     [InlineData("Searches orders; see the OUTPUT   SCHEMA in the docs.")]
     public void MCPP014_CueWithoutOutputSchema_IsAFinding(string description)
     {
@@ -142,6 +141,7 @@ public sealed class ToolLinterQualityTests
     [InlineData("Accepts a JSON filter and searches orders.")]
     [InlineData("Searches orders. Returns JSONL, one order per line.")]
     [InlineData("Searches orders and returns jsonish text.")]
+    [InlineData("Looks up an S3 key and returns an object ID for later calls.")]
     public void MCPP014_StaysQuietWithoutAClearCue(string description)
     {
         Assert.Empty(Rule(Surface("search_orders", description), "MCPP014"));
@@ -216,7 +216,7 @@ public sealed class ToolLinterQualityTests
 
         var finding = Assert.Single(Rule(Surface("t", inputSchema: schema), "MCPP016"));
         Assert.Equal((LintSeverity.Warning, path), (finding.Severity, finding.ParameterName));
-        Assert.Contains("Empty enum accepts no value", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("Empty enum accepts no value, so this schema can never match", finding.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -232,7 +232,6 @@ public sealed class ToolLinterQualityTests
     [InlineData("""{"enum":[1,2.5]}""", "Add \"type\": \"number\" next to it")]
     [InlineData("""{"enum":[1.0]}""", "Add \"type\": \"integer\" next to it")]
     [InlineData("""{"enum":[true]}""", "Add \"type\": \"boolean\" next to it")]
-    [InlineData("""{"enum":["a",null]}""", "Add \"type\": [\"string\", \"null\"] next to it")]
     public void MCPP016_EnumWithoutType_SuggestsTheType(string property, string hint)
     {
         var finding = Assert.Single(Rule(Surface("t", inputSchema: Prop(property)), "MCPP016"));
@@ -245,6 +244,9 @@ public sealed class ToolLinterQualityTests
     [InlineData("""{"type":["string","null"],"enum":["a",null]}""")]
     [InlineData("""{"enum":["a",1]}""")]
     [InlineData("""{"enum":[null]}""")]
+    [InlineData("""{"enum":["a",null]}""")]
+    [InlineData("""{"type":"object","propertyNames":{"enum":[]}}""")]
+    [InlineData("""{"type":"object","propertyNames":{"enum":["a","b"]}}""")]
     [InlineData("""{"enum":"a"}""")]
     [InlineData("""{"type":"string"}""")]
     [InlineData("""{"type":"string","anyOf":[{"enum":["a","b"]},{"pattern":"^x"}]}""")]
@@ -305,7 +307,7 @@ public sealed class ToolLinterQualityTests
     public void Messages_StayUnderTheReportCap_WithLongNames()
     {
         var name = "delete_" + new string('x', 121);
-        var findings = Lint(Surface(name, "Returns JSON. " + name, inputSchema: Prop("""{"enum":["a",null]}"""), annotations: """{"destructiveHint":false}"""))
+        var findings = Lint(Surface(name, "Returns JSON. " + name, inputSchema: Prop("""{"enum":["a"]}"""), annotations: """{"destructiveHint":false}"""))
             .Concat(Lint(Surface(name, name)))
             .Concat(Lint(Surface(name, inputSchema: Prop("""{"type":"string","enum":[]}"""), annotations: """{"readOnlyHint":true,"destructiveHint":true}""")))
             .Concat(Lint(Surface(name, inputSchema: "{}", annotations: """{"readOnlyHint":true}""")))

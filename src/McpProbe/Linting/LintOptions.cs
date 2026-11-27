@@ -27,7 +27,7 @@ public sealed class LintOptions
     /// </summary>
     public ISet<string> StructuredOutputCues { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "output schema", "returns a json", "returns an object", "returns json", "structured content", "structured output", "structured result",
+        "output schema", "returns a json", "returns json", "structured content", "structured output", "structured result",
     };
 
     /// <summary>

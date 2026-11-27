@@ -172,9 +172,9 @@ internal static class SchemaPortabilityLinter
 
     private static void CheckEnum(JsonObject node, string path, string? keyword, WalkContext ctx)
     {
-        // Under `not` an empty enum accepts everything, and branches of combinators usually take their
-        // type from the parent schema, so those stay quiet.
-        if (keyword == "not" ||
+        // Under `not` an empty enum accepts everything, `propertyNames` only ever sees strings (an empty enum
+        // there is a legal way to forbid keys), and combinator branches usually take their type from the parent.
+        if (keyword is "not" or "propertyNames" ||
             JsonSchemaReader.Get(node, "enum") is not JsonArray values ||
             ctx.Options.SeverityOf(LintRules.EnumWithoutValuesOrType) == LintSeverity.None)
         {
@@ -184,36 +184,31 @@ internal static class SchemaPortabilityLinter
         if (values.Count == 0)
         {
             Add(ctx, LintRules.EnumWithoutValuesOrType, path,
-                "Empty enum accepts no value, so this argument can never be passed (or this output never returned). Add the allowed values, or remove the enum.");
+                "Empty enum accepts no value, so this schema can never match. Add the allowed values, or remove the enum.");
             return;
         }
 
         if (node.ContainsKey("type") || keyword is "allOf" or "anyOf" or "oneOf" or "if" or "then" or "else" ||
-            !TryGetSingleValueType(values, out var type, out var hasNull))
+            !TryGetSingleValueType(values, out var type))
         {
             return;
         }
 
-        var hint = hasNull
-            ? $"Add \"type\": [\"{type}\", \"null\"] next to it"
-            : $"Add \"type\": \"{type}\" next to it";
         Add(ctx, LintRules.EnumWithoutValuesOrType, path,
-            $"enum has no type. {hint} so clients don't have to infer it.");
+            $"enum has no type. Add \"type\": \"{type}\" next to it so clients don't have to infer it.");
     }
 
-    // True when every non-null enum value has the same JSON type. Mixed enums stay quiet: one `type`
-    // can't describe them without a type union (MCPP010).
-    private static bool TryGetSingleValueType(JsonArray values, out string type, out bool hasNull)
+    // True when every enum value has the same JSON type. Mixed enums, including ones with null, stay quiet:
+    // one `type` can't describe them without a type union (MCPP010).
+    private static bool TryGetSingleValueType(JsonArray values, out string type)
     {
         type = "";
-        hasNull = false;
         foreach (var value in values)
         {
             var kind = value?.GetValueKind() ?? JsonValueKind.Null;
             if (kind == JsonValueKind.Null)
             {
-                hasNull = true;
-                continue;
+                return false;
             }
 
             var name = kind switch
