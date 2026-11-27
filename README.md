@@ -93,6 +93,9 @@ Non-breaking:
 ```csharp
 var report = await probe.LintToolsAsync();
 report.ThrowIfFailed(); // fails on warnings and errors by default
+
+var strict = await probe.LintToolsAsync(new LintOptions { Strict = true });
+strict.ThrowIfFailed();
 ```
 
 | Id | Default | Checks |
@@ -104,8 +107,14 @@ report.ThrowIfFailed(); // fails on warnings and errors by default
 | MCPP005 | warning | All tool names use the same style (snake_case, camelCase, ...). |
 | MCPP006 | warning | All parameter names use the same style. |
 | MCPP007 | info | Parameter names aren't vague (`data`, `value`, `input`, ...). |
+| MCPP009 | error | No bare `true`/`false` where a schema object is expected (`--strict`). |
+| MCPP010 | warning | `type` is not a union array (`--strict`). |
+| MCPP011 | warning | Every schema has a constraining keyword (`--strict`). |
+| MCPP012 | warning | `$ref` does not point outside the document (`--strict`). |
 
 Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, and the threshold with `LintOptions.FailOn`. By default MCPP003, MCPP006 and MCPP007 check top-level parameters. Set `LintOptions.CheckNestedParameters = true` (CLI: `mcpprobe lint --nested`) to also check nested object properties and array items (reported as `home.zip` or `stops[].city`), following local `$ref`s; a schema used in several places is checked once.
+
+Set `LintOptions.Strict = true` (CLI: `mcpprobe lint --strict`) to also run MCPP009-MCPP012, the schema-portability checks from MCP Inspector, on `inputSchema` and `outputSchema`. Those findings are reported with paths such as `inputSchema.properties.city` (the existing parameter rules still use `city`). They fail the report only when their effective severity is error, so a type-union warning does not trip the default `FailOn = Warning` gate; use `--rule MCPP010=error` if you want that warning to fail. A single portability rule can be turned on without `--strict` by setting its severity, or turned off with `--rule MCPP011=none`. MCPP008 is reserved for a community issue and is not implemented here.
 
 ## CLI in CI
 

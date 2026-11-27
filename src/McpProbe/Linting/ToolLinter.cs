@@ -13,6 +13,8 @@ namespace McpProbe.Linting;
 /// <remarks>
 /// Parameter rules check top-level parameters. With <see cref="LintOptions.CheckNestedParameters"/> they also check nested
 /// object properties and array items, reported as <c>address.zip</c> or <c>stops[].city</c>, following local <c>$ref</c>s.
+/// With <see cref="LintOptions.Strict"/>, MCPP009-MCPP012 also walk <c>inputSchema</c> and <c>outputSchema</c> for
+/// portability issues (paths such as <c>inputSchema.properties.city</c>).
 /// </remarks>
 public static class ToolLinter
 {
@@ -59,6 +61,7 @@ public static class ToolLinter
 
             var schema = JsonSchemaReader.FromElement(tool.InputSchema);
             LintProperties(new Walk(tool.Name, schema, options, findings, parameterNames), schema, prefix: null);
+            SchemaPortabilityLinter.Lint(tool, options, findings);
         }
 
         CheckConsistency(
