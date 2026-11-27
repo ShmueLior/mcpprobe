@@ -142,6 +142,7 @@ public sealed class ToolSurfaceComparerKeywordTests
         var walked = Input(empty, schema);
         Assert.Equal(($"input.p[{keyword}]", ToolSurfaceChangeKind.TypeChanged, ChangeSeverity.Breaking), (walked.Path, walked.Kind, walked.Severity));
         AssertTighter(schema, forbid);
+        AssertTighter(empty, forbid);
         Assert.Equal($"'{keyword}' on parameter 'p' changed from true to false (tighter).", Input(allowAll, forbid).Message);
 
         AssertUnclassified(forbid, $"\"{keyword}\":1");
@@ -150,6 +151,8 @@ public sealed class ToolSurfaceComparerKeywordTests
 
     [Theory]
     [InlineData("additionalProperties")]
+    [InlineData("unevaluatedProperties")]
+    [InlineData("additionalItems")]
     [InlineData("unevaluatedItems")]
     public void ExtrasSchemas_OnBothSides_AreComparedLikeAnyOtherSchema(string keyword)
     {
