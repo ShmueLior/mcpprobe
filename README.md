@@ -1,6 +1,6 @@
 # McpProbe
 
-[![CI](https://img.shields.io/badge/CI-placeholder-lightgrey)](#)
+[![CI](https://github.com/ShmueLior/mcpprobe/actions/workflows/ci.yml/badge.svg)](https://github.com/ShmueLior/mcpprobe/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/badge/nuget-not%20published-lightgrey)](#)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -14,7 +14,7 @@ Test kit for MCP servers built with the [MCP C# SDK](https://github.com/modelcon
 
 Works with any test framework: failures are plain `McpProbeAssertionException`s. Targets .NET 8 and .NET 10, on ModelContextProtocol 2.4.0.
 
-> Status: 0.1.0, not published yet. The API may change before 1.0.
+> Status: 0.1.0-preview, not published to NuGet yet. The API may change before 1.0.
 
 ## Quickstart
 
@@ -103,7 +103,7 @@ Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, 
 ## CLI in CI
 
 ```bash
-dotnet tool install --global McpProbe.Cli
+dotnet tool install --global McpProbe.Cli --prerelease
 
 mcpprobe snapshot --stdio "dotnet run --project src/MyServer" --out mcp-tools.json   # once, then commit
 mcpprobe diff     --stdio "dotnet run --project src/MyServer" --baseline mcp-tools.json
@@ -117,7 +117,7 @@ GitHub Actions step:
 ```yaml
 - name: Check MCP tool surface
   run: |
-    dotnet tool install --global McpProbe.Cli
+    dotnet tool install --global McpProbe.Cli --prerelease
     mcpprobe diff --stdio "dotnet run --project src/MyServer -c Release" --baseline mcp-tools.json
     mcpprobe lint --stdio "dotnet run --project src/MyServer -c Release"
 ```
