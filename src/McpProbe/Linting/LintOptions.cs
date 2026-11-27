@@ -13,6 +13,24 @@ public sealed class LintOptions
     };
 
     /// <summary>
+    /// Gets the name segments MCPP013 treats as destructive, such as <c>delete</c> in <c>delete_file</c> or <c>DeleteFile</c>.
+    /// Names are split on '_', '-', '.' and case changes; a whole segment must match. Compared case-insensitively.
+    /// </summary>
+    public ISet<string> DestructiveNameTokens { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "clear", "delete", "destroy", "drop", "erase", "purge", "remove", "truncate", "unlink", "wipe",
+    };
+
+    /// <summary>
+    /// Gets the description phrases MCPP014 reads as a claim of structured results, such as <c>returns JSON</c>.
+    /// Matched case-insensitively as whole words, with runs of whitespace treated as one space.
+    /// </summary>
+    public ISet<string> StructuredOutputCues { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "output schema", "returns a json", "returns an object", "returns json", "structured content", "structured output", "structured result",
+    };
+
+    /// <summary>
     /// Gets per-rule severity overrides, keyed by rule id (for example <c>MCPP007</c>).
     /// Use <see cref="LintSeverity.None"/> to turn a rule off.
     /// </summary>
@@ -20,7 +38,7 @@ public sealed class LintOptions
 
     /// <summary>
     /// Gets or sets the lowest severity that fails <see cref="LintReport.ThrowIfFailed"/> and the assertion helpers
-    /// for the existing rules (MCPP001-MCPP007). Defaults to <see cref="LintSeverity.Warning"/>.
+    /// for MCPP001-MCPP007 and MCPP013-MCPP016. Defaults to <see cref="LintSeverity.Warning"/>.
     /// Set it to <see cref="LintSeverity.None"/> so those rules never fail. Findings from the schema-portability
     /// rules (MCPP009-MCPP012) fail only when their effective severity is <see cref="LintSeverity.Error"/>;
     /// this property does not change that floor.

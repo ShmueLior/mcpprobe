@@ -10,7 +10,8 @@ namespace McpProbe.Linting;
 /// Ports MCP Inspector's schema portability walk (<c>core/json/schemaLint.ts</c>): boolean-schema,
 /// type-union, untyped-schema and remote-ref. Used by MCPP009-MCPP012 when
 /// <see cref="LintOptions.Strict"/> is on, or when a caller overrides those rules in
-/// <see cref="LintOptions.Severities"/>.
+/// <see cref="LintOptions.Severities"/>. The same walk runs MCPP016 (empty or untyped <c>enum</c>),
+/// which is on by default.
 /// </summary>
 internal static class SchemaPortabilityLinter
 {
@@ -92,7 +93,8 @@ internal static class SchemaPortabilityLinter
         options.IsPortabilityRuleEnabled(LintRules.BooleanSchema) ||
         options.IsPortabilityRuleEnabled(LintRules.TypeUnion) ||
         options.IsPortabilityRuleEnabled(LintRules.UntypedSchema) ||
-        options.IsPortabilityRuleEnabled(LintRules.RemoteRef);
+        options.IsPortabilityRuleEnabled(LintRules.RemoteRef) ||
+        options.SeverityOf(LintRules.EnumWithoutValuesOrType) != LintSeverity.None;
 
     private static void WalkSchema(JsonNode? schema, string kind, string tool, LintOptions options, List<LintFinding> findings)
     {
@@ -157,6 +159,8 @@ internal static class SchemaPortabilityLinter
                 $"`$ref` points outside this document ('{reference}'). Clients do not fetch remote schemas, so the constraint is dropped or the tool is rejected. Inline the referenced schema, or move it into $defs and reference it as #/$defs/<name>.");
         }
 
+        CheckEnum(node, path, keyword, ctx);
+
         if (!ConstrainsInstance(node) &&
             keyword != "not" &&
             ctx.Options.IsPortabilityRuleEnabled(LintRules.UntypedSchema))
@@ -165,6 +169,84 @@ internal static class SchemaPortabilityLinter
                 "Schema carries no validation keyword at all, so it accepts any value (the object form of a bare true). Declare what the value actually is, for example {\"type\": \"object\", \"additionalProperties\": true} for a free-form object. That is a deliberate change of contract, which is the point: as written it constrains nothing.");
         }
     }
+
+    private static void CheckEnum(JsonObject node, string path, string? keyword, WalkContext ctx)
+    {
+        // Under `not` an empty enum accepts everything, and branches of combinators usually take their
+        // type from the parent schema, so those stay quiet.
+        if (keyword == "not" ||
+            JsonSchemaReader.Get(node, "enum") is not JsonArray values ||
+            ctx.Options.SeverityOf(LintRules.EnumWithoutValuesOrType) == LintSeverity.None)
+        {
+            return;
+        }
+
+        if (values.Count == 0)
+        {
+            Add(ctx, LintRules.EnumWithoutValuesOrType, path,
+                "Empty enum accepts no value, so this argument can never be passed (or this output never returned). Add the allowed values, or remove the enum.");
+            return;
+        }
+
+        if (node.ContainsKey("type") || keyword is "allOf" or "anyOf" or "oneOf" or "if" or "then" or "else" ||
+            !TryGetSingleValueType(values, out var type, out var hasNull))
+        {
+            return;
+        }
+
+        var hint = hasNull
+            ? $"Add \"type\": [\"{type}\", \"null\"] next to it"
+            : $"Add \"type\": \"{type}\" next to it";
+        Add(ctx, LintRules.EnumWithoutValuesOrType, path,
+            $"enum has no type. {hint} so clients don't have to infer it.");
+    }
+
+    // True when every non-null enum value has the same JSON type. Mixed enums stay quiet: one `type`
+    // can't describe them without a type union (MCPP010).
+    private static bool TryGetSingleValueType(JsonArray values, out string type, out bool hasNull)
+    {
+        type = "";
+        hasNull = false;
+        foreach (var value in values)
+        {
+            var kind = value?.GetValueKind() ?? JsonValueKind.Null;
+            if (kind == JsonValueKind.Null)
+            {
+                hasNull = true;
+                continue;
+            }
+
+            var name = kind switch
+            {
+                JsonValueKind.String => "string",
+                JsonValueKind.Number => IsInteger(value!) ? "integer" : "number",
+                JsonValueKind.True or JsonValueKind.False => "boolean",
+                JsonValueKind.Object => "object",
+                JsonValueKind.Array => "array",
+                _ => "",
+            };
+
+            // integer widens to number when the enum mixes 1 and 1.5.
+            if (type.Length == 0 || type == name)
+            {
+                type = name;
+            }
+            else if ((type, name) is ("integer", "number") or ("number", "integer"))
+            {
+                type = "number";
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return type.Length > 0;
+    }
+
+    private static bool IsInteger(JsonNode value) =>
+        decimal.TryParse(value.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) &&
+        number == decimal.Truncate(number);
 
     private static string TrueSuggestion(string? keyword) =>
         keyword == "not"

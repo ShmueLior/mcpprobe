@@ -14,7 +14,7 @@ namespace McpProbe.Linting;
 /// Parameter rules check top-level parameters. With <see cref="LintOptions.CheckNestedParameters"/> they also check nested
 /// object properties and array items, reported as <c>address.zip</c> or <c>stops[].city</c>, following local <c>$ref</c>s.
 /// With <see cref="LintOptions.Strict"/>, MCPP009-MCPP012 also walk <c>inputSchema</c> and <c>outputSchema</c> for
-/// portability issues (paths such as <c>inputSchema.properties.city</c>).
+/// portability issues (paths such as <c>inputSchema.properties.city</c>). MCPP016 uses the same walk and paths, but runs by default.
 /// </remarks>
 public static class ToolLinter
 {
@@ -58,6 +58,8 @@ public static class ToolLinter
         {
             CheckToolName(tool.Name, options, findings);
             CheckToolDescription(tool, options, findings);
+            CheckDestructiveHint(tool, options, findings);
+            CheckStructuredOutput(tool, options, findings);
 
             var schema = JsonSchemaReader.FromElement(tool.InputSchema);
             LintProperties(new Walk(tool.Name, schema, options, findings, parameterNames), schema, prefix: null);
@@ -161,12 +163,129 @@ public static class ToolLinter
             Add(findings, options, LintRules.ToolMissingDescription, tool.Name, null,
                 "Tool has no description. Models pick tools by their description; say what it does and when to use it.");
         }
+        else if (RestatesName(tool, description) && options.SeverityOf(LintRules.DescriptionRestatesName) != LintSeverity.None)
+        {
+            // More specific than MCPP002, so a short tautology reports only this.
+            Add(findings, options, LintRules.DescriptionRestatesName, tool.Name, null,
+                "Description only restates the tool name. Say what the tool does, what it returns and when to use it.");
+        }
         else if (description.Length < options.MinToolDescriptionLength)
         {
             Add(findings, options, LintRules.ToolDescriptionTooShort, tool.Name, null,
                 string.Create(CultureInfo.InvariantCulture,
                     $"Description is {description.Length} characters (minimum {options.MinToolDescriptionLength}). Say what the tool does and when to use it."));
         }
+    }
+
+    private static bool RestatesName(ToolContract tool, string description)
+    {
+        var normalized = NormalizeName(description);
+        return normalized.Length > 0 &&
+            (normalized == NormalizeName(tool.Name) || (tool.Title is { } title && normalized == NormalizeName(title)));
+    }
+
+    // "get_forecast", "GetForecast" and "Get forecast." all become "get forecast".
+    private static string NormalizeName(string text)
+    {
+        text = text.Trim();
+        if (text.Length > 0 && text[^1] is '.' or ':')
+        {
+            text = text[..^1];
+        }
+
+        return string.Join(' ', SplitName(text)).ToLowerInvariant();
+    }
+
+    private static string CollapseWhitespace(string text) =>
+        string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
+
+    // Splits a name on '_', '-', '.', whitespace and case changes: "getHTTPStatus_v2" -> get, HTTP, Status, v2.
+    internal static List<string> SplitName(string name)
+    {
+        var segments = new List<string>();
+        var start = 0;
+        for (var i = 0; i <= name.Length; i++)
+        {
+            var boundary = i == name.Length || name[i] is '_' or '-' or '.' || char.IsWhiteSpace(name[i]);
+            var caseBreak = !boundary && i > start && char.IsUpper(name[i]) &&
+                (char.IsLower(name[i - 1]) || (char.IsUpper(name[i - 1]) && i + 1 < name.Length && char.IsLower(name[i + 1])));
+            if (boundary || caseBreak)
+            {
+                if (i > start)
+                {
+                    segments.Add(name[start..i]);
+                }
+
+                start = boundary ? i + 1 : i;
+            }
+        }
+
+        return segments;
+    }
+
+    private static void CheckDestructiveHint(ToolContract tool, LintOptions options, List<LintFinding> findings)
+    {
+        var hints = tool.Annotations;
+        if (hints is null || options.SeverityOf(LintRules.DestructiveHintMismatch) == LintSeverity.None)
+        {
+            return;
+        }
+
+        string? message = null;
+        if (hints.ReadOnlyHint == true && hints.DestructiveHint == true)
+        {
+            message = "Tool is marked read-only and destructive at the same time. Set destructiveHint to false, or drop readOnlyHint if the tool can destroy data.";
+        }
+        else if ((hints.DestructiveHint == false || hints.ReadOnlyHint == true) &&
+            SplitName(tool.Name).FirstOrDefault(options.DestructiveNameTokens.Contains) is { } token)
+        {
+            var quoted = Printable.Text(token.ToLowerInvariant(), 40);
+            message = hints.DestructiveHint == false
+                ? $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but destructiveHint is false. Set destructiveHint to true, or rename the tool if it is safe."
+                : $"Tool name contains '{quoted}', which suggests it deletes or overwrites data, but readOnlyHint is true. Drop readOnlyHint, or rename the tool if it only reads.";
+        }
+
+        if (message is not null)
+        {
+            Add(findings, options, LintRules.DestructiveHintMismatch, tool.Name, null, message);
+        }
+    }
+
+    private static void CheckStructuredOutput(ToolContract tool, LintOptions options, List<LintFinding> findings)
+    {
+        if (tool.OutputSchema is not null ||
+            string.IsNullOrWhiteSpace(tool.Description) ||
+            options.SeverityOf(LintRules.StructuredOutputWithoutSchema) == LintSeverity.None)
+        {
+            return;
+        }
+
+        var text = CollapseWhitespace(tool.Description);
+        foreach (var cue in options.StructuredOutputCues)
+        {
+            var phrase = CollapseWhitespace(cue);
+            if (phrase.Length > 0 && ContainsWords(text, phrase))
+            {
+                Add(findings, options, LintRules.StructuredOutputWithoutSchema, tool.Name, null,
+                    "Description says the tool returns structured results, but it has no outputSchema. Declare an outputSchema (C#: UseStructuredContent = true) so clients can validate and use the result.");
+                return;
+            }
+        }
+    }
+
+    // Whole-word match: the phrase must not be preceded or followed by a letter or digit.
+    private static bool ContainsWords(string text, string phrase)
+    {
+        for (var i = text.IndexOf(phrase, StringComparison.Ordinal); i >= 0; i = text.IndexOf(phrase, i + 1, StringComparison.Ordinal))
+        {
+            var end = i + phrase.Length;
+            if ((i == 0 || !char.IsLetterOrDigit(text[i - 1])) && (end == text.Length || !char.IsLetterOrDigit(text[end])))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void CheckConsistency(
