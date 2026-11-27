@@ -18,6 +18,10 @@ Works with any test framework: failures are plain `McpProbeAssertionException`s.
 
 ## Quickstart
 
+```bash
+dotnet add package McpProbe --prerelease
+```
+
 ```csharp
 using McpProbe;
 using McpProbe.Assertions;

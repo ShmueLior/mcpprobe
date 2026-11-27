@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version to publish, without a leading v (for example 0.1.0-preview). Required for a manual run.'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Resolve package version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="${INPUT_VERSION}"
+          elif [[ "$REF_TYPE" == "tag" ]]; then
+            VERSION="$REF_NAME"
+          else
+            VERSION=""
+          fi
+          VERSION="${VERSION#v}"
+          if [[ -z "$VERSION" ]]; then
+            echo "No version. Push a v* tag or pass a version to workflow_dispatch."
+            exit 1
+          fi
+
+          PROJECT_VERSION="$(dotnet msbuild src/McpProbe/McpProbe.csproj -getProperty:Version -nologo | tr -d '[:space:]')"
+          if [[ "$VERSION" != "$PROJECT_VERSION" ]]; then
+            echo "Tag/input version '$VERSION' does not match project version '$PROJECT_VERSION'."
+            exit 1
+          fi
+
+          echo "Publishing version $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        run: dotnet test --solution McpProbe.slnx -c Release --no-build
+
+      - name: Pack
+        run: dotnet pack -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }}
+
+      - name: NuGet login (OIDC to temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ShmueLior
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push artifacts/*.nupkg
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
