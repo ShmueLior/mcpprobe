@@ -12,17 +12,22 @@ namespace McpProbe.Snapshots;
 /// <para>
 /// Breaking: a removed tool, a removed parameter, a new required parameter, a parameter that became required,
 /// a narrowed input type, a removed enum value or a tighter input constraint (a higher <c>minimum</c>, a lower <c>maxLength</c>,
-/// a new or changed <c>pattern</c> and so on). For output schemas: a removed output schema or property, a property that
-/// became optional, a widened type, a new enum value or a looser constraint.
+/// a new or changed <c>pattern</c> or <c>format</c>, a new <c>const</c>, <c>uniqueItems: true</c>, <c>additionalProperties: false</c>
+/// and so on). For output schemas: a removed output schema or property, a property that became optional, a widened type,
+/// a new enum value or a looser constraint.
 /// </para>
 /// <para>
 /// Non-breaking: added tools, optional parameters and output properties, description, title and annotation changes,
-/// widened input types and looser input constraints. Other JSON Schema keywords (<c>format</c>, <c>allOf</c> and so on) are
+/// widened input types and looser input constraints. Other JSON Schema keywords (<c>allOf</c>, <c>anyOf</c>, <c>oneOf</c> and so on) are
 /// reported as <see cref="ToolSurfaceChangeKind.KeywordChanged"/> without being classified.
 /// </para>
 /// <para>
 /// Local <c>$ref</c>s (<c>#/$defs/...</c>, <c>#/definitions/...</c>, <c>#/properties/...</c>) are followed, so a change inside a
 /// referenced schema is classified like an inline one, at the path where it's used. Other refs are compared as plain keywords.
+/// </para>
+/// <para>
+/// When both sides give <c>additionalProperties</c> (or <c>unevaluatedProperties</c>, <c>additionalItems</c>, <c>unevaluatedItems</c>)
+/// as a schema, the two schemas are compared at a path such as <c>input.meta[additionalProperties]</c>.
 /// </para>
 /// </remarks>
 public static class ToolSurfaceComparer
@@ -42,6 +47,11 @@ public static class ToolSurfaceComparer
         ("minimum", true), ("exclusiveMinimum", true), ("minLength", true), ("minItems", true), ("minProperties", true),
         ("maximum", false), ("exclusiveMaximum", false), ("maxLength", false), ("maxItems", false), ("maxProperties", false),
     ];
+
+    private static readonly string[] s_stringConstraints = ["pattern", "format"];
+
+    // Keywords that say what extra properties or items may look like; a missing one allows anything.
+    private static readonly string[] s_extraKeywords = ["additionalProperties", "unevaluatedProperties", "additionalItems", "unevaluatedItems"];
 
     /// <summary>Compares a baseline surface with the current one.</summary>
     /// <param name="baseline">The committed (expected) surface.</param>
@@ -210,7 +220,7 @@ public static class ToolSurfaceComparer
         CompareOtherKeywords(context, side, path, old, cur, classified);
     }
 
-    /// <summary>Classifies bounds, <c>multipleOf</c> and <c>pattern</c>; returns the keywords it handled.</summary>
+    /// <summary>Classifies bounds, <c>multipleOf</c>, <c>pattern</c>, <c>format</c>, <c>uniqueItems</c>, <c>const</c> and the additional/unevaluated keywords; returns the keywords it handled.</summary>
     private static HashSet<string> CompareConstraints(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
     {
         var handled = new HashSet<string>(StringComparer.Ordinal);
@@ -265,17 +275,75 @@ public static class ToolSurfaceComparer
             }
         }
 
-        var oldPattern = JsonSchemaReader.Get(old, "pattern");
-        var curPattern = JsonSchemaReader.Get(cur, "pattern");
-        if ((oldPattern is not null || curPattern is not null) &&
-            (oldPattern is null || JsonSchemaReader.GetString(old, "pattern") is not null) && (curPattern is null || JsonSchemaReader.GetString(cur, "pattern") is not null))
+        foreach (var keyword in s_stringConstraints)
         {
-            handled.Add("pattern");
-            if (!string.Equals(JsonSchemaReader.GetString(old, "pattern"), JsonSchemaReader.GetString(cur, "pattern"), StringComparison.Ordinal))
+            var before = JsonSchemaReader.Get(old, keyword);
+            var after = JsonSchemaReader.Get(cur, keyword);
+            var oldText = JsonSchemaReader.GetString(old, keyword);
+            var curText = JsonSchemaReader.GetString(cur, keyword);
+            if ((before is null && after is null) || (before is not null && oldText is null) || (after is not null && curText is null))
             {
-                // Two regexes can't be compared, so a changed pattern counts as neither tighter nor looser.
-                bool? tighter = oldPattern is null ? true : curPattern is null ? false : null;
-                AddConstraintChange(context, side, path, "pattern", oldPattern, curPattern, tighter);
+                continue;
+            }
+
+            handled.Add(keyword);
+            if (!string.Equals(oldText, curText, StringComparison.Ordinal))
+            {
+                // Two regexes or formats can't be compared, so a changed one counts as neither tighter nor looser.
+                bool? tighter = before is null ? true : after is null ? false : null;
+                AddConstraintChange(context, side, path, keyword, before, after, tighter);
+            }
+        }
+
+        // uniqueItems defaults to false, so a missing value is the same as false.
+        var oldUnique = JsonSchemaReader.Get(old, "uniqueItems");
+        var curUnique = JsonSchemaReader.Get(cur, "uniqueItems");
+        if ((oldUnique is not null || curUnique is not null) &&
+            (oldUnique is null || TryGetBool(oldUnique, out _)) && (curUnique is null || TryGetBool(curUnique, out _)))
+        {
+            handled.Add("uniqueItems");
+            var b = TryGetBool(oldUnique, out var bv) && bv;
+            var a = TryGetBool(curUnique, out var av) && av;
+            if (a != b)
+            {
+                AddConstraintChange(context, side, path, "uniqueItems", oldUnique, curUnique, a);
+            }
+        }
+
+        // const may be null, so look at presence rather than the node.
+        JsonNode? oldConst = null;
+        JsonNode? curConst = null;
+        var hadConst = old is JsonObject oldObj && oldObj.TryGetPropertyValue("const", out oldConst);
+        var hasConst = cur is JsonObject curObj && curObj.TryGetPropertyValue("const", out curConst);
+        if (hadConst || hasConst)
+        {
+            handled.Add("const");
+            if (hadConst != hasConst ||
+                !string.Equals(JsonSchemaReader.ToCompactJson(oldConst), JsonSchemaReader.ToCompactJson(curConst), StringComparison.Ordinal))
+            {
+                bool? tighter = !hadConst ? true : !hasConst ? false : null;
+                AddConstraintChange(context, side, path, "const", oldConst, curConst, tighter, hadConst, hasConst);
+            }
+        }
+
+        foreach (var keyword in s_extraKeywords)
+        {
+            var before = JsonSchemaReader.Get(old, keyword);
+            var after = JsonSchemaReader.Get(cur, keyword);
+            if (!TryRankExtras(before, out var b) || !TryRankExtras(after, out var a) || (before is null && after is null))
+            {
+                continue; // Other value kinds are left to CompareOtherKeywords.
+            }
+
+            handled.Add(keyword);
+            if (before is JsonObject && after is JsonObject)
+            {
+                // Both sides constrain the extras with a schema: compare those schemas like any other.
+                CompareSchema(context, side, path + "[" + keyword + "]", before, after);
+            }
+            else if (a != b)
+            {
+                AddConstraintChange(context, side, path, keyword, before, after, a > b);
             }
         }
 
@@ -283,7 +351,8 @@ public static class ToolSurfaceComparer
     }
 
     // tighter is null when the new constraint is neither tighter nor looser, which breaks both ways.
-    private static void AddConstraintChange(Context context, Side side, string path, string keyword, JsonNode? before, JsonNode? after, bool? tighter)
+    private static void AddConstraintChange(
+        Context context, Side side, string path, string keyword, JsonNode? before, JsonNode? after, bool? tighter, bool? hadBefore = null, bool? hasAfter = null)
     {
         // Inputs may accept more than before; outputs may promise more than before.
         var severity = tighter is null || tighter == (side == Side.Input) ? ChangeSeverity.Breaking : ChangeSeverity.NonBreaking;
@@ -295,17 +364,37 @@ public static class ToolSurfaceComparer
         };
         var subject = path.Length == 0 ? (side == Side.Input ? "the input schema" : "the output schema") : Describe(side, path);
         context.Add(side, path, ToolSurfaceChangeKind.ConstraintChanged, severity,
-            $"'{keyword}' on {subject} changed from {Show(before)} to {Show(after)} ({direction}).");
+            $"'{keyword}' on {subject} changed from {Show(before, hadBefore ?? before is not null)} to {Show(after, hasAfter ?? after is not null)} ({direction}).");
 
         // Patterns as written: ToJsonString would escape characters like '+'.
-        static string Show(JsonNode? node) =>
-            node is JsonValue v && v.TryGetValue(out string? s) ? (s.Length <= 60 ? $"'{s}'" : $"'{s[..57]}...'") : Preview(node is not null, node);
+        static string Show(JsonNode? node, bool present) =>
+            node is JsonValue v && v.TryGetValue(out string? s) ? (s.Length <= 60 ? $"'{s}'" : $"'{s[..57]}...'") : Preview(present, node);
     }
 
     private static bool TryGetNumber(JsonNode? node, out double value)
     {
         value = 0;
         return node is JsonValue v && v.GetValueKind() == JsonValueKind.Number && v.TryGetValue(out value) && double.IsFinite(value);
+    }
+
+    private static bool TryGetBool(JsonNode? node, out bool value)
+    {
+        value = false;
+        return node is JsonValue v && v.GetValueKind() is JsonValueKind.True or JsonValueKind.False && v.TryGetValue(out value);
+    }
+
+    // How much an additionalProperties-like keyword restricts extra properties or items:
+    // 0 allows anything (missing, true or {}), 1 requires a schema, 2 forbids them (false).
+    private static bool TryRankExtras(JsonNode? node, out int rank)
+    {
+        rank = node switch
+        {
+            null => 0,
+            JsonObject extras => extras.Count == 0 ? 0 : 1,
+            _ when TryGetBool(node, out var allowed) => allowed ? 0 : 2,
+            _ => -1,
+        };
+        return rank >= 0;
     }
 
     private static bool TryGetDecimal(JsonNode? node, out decimal value)

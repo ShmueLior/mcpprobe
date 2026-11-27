@@ -196,13 +196,13 @@ public sealed class ToolSurfaceComparerTests
     public void OtherKeywords_AreReportedButNotClassified()
     {
         var diff = Diff(
-            Tool("t", """{"type":"object","properties":{"days":{"type":"string","format":"date","default":3}}}"""),
-            Tool("t", """{"type":"object","properties":{"days":{"type":"string","format":"date-time"}}}"""));
+            Tool("t", """{"type":"object","properties":{"days":{"type":"string","allOf":[{"minLength":1}],"default":3}}}"""),
+            Tool("t", """{"type":"object","properties":{"days":{"type":"string","allOf":[{"minLength":2}]}}}"""));
 
         Assert.False(diff.HasBreakingChanges);
         Assert.Equal(2, diff.Changes.Count);
         Assert.All(diff.Changes, c => Assert.Equal(ToolSurfaceChangeKind.KeywordChanged, c.Kind));
-        Assert.Contains(diff.Changes, c => c.Message == "Keyword 'format' on parameter 'days' changed from \"date\" to \"date-time\" (not classified, review by hand).");
+        Assert.Contains(diff.Changes, c => c.Message == "Keyword 'allOf' on parameter 'days' changed from [{\"minLength\":1}] to [{\"minLength\":2}] (not classified, review by hand).");
         Assert.Contains(diff.Changes, c => c.Message.Contains("'default'", StringComparison.Ordinal) && c.Message.Contains("to (unset)", StringComparison.Ordinal));
     }
 
