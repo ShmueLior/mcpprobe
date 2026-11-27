@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.0-preview] - 2026-11-27
+
 ### Added
 
 - Snapshot diffs follow local `$ref`s (`#/$defs/...`, `#/definitions/...`, `#/properties/...`), so changes inside referenced schemas are classified like inline ones. Recursive schemas are handled.

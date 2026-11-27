@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package metadata">
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionPrefix>0.2.0</VersionPrefix>
     <VersionSuffix>preview</VersionSuffix>
     <Authors>Lior Shmueli</Authors>
     <Copyright>Copyright (c) 2026 Lior Shmueli</Copyright>
