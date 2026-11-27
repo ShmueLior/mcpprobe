@@ -16,6 +16,8 @@ Works with any test framework: failures are plain `McpProbeAssertionException`s.
 
 > Status: 0.2.0-preview on NuGet. The API may change before 1.0.
 
+![mcpprobe CLI: snapshot a server, lint it, then catch a breaking tool-surface change](docs/demo.gif)
+
 ## Quickstart
 
 ```bash
