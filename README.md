@@ -117,7 +117,10 @@ dotnet tool install --global McpProbe.Cli --version 0.2.0-preview
 mcpprobe snapshot --stdio "dotnet run --project src/MyServer" --out mcp-tools.json
 mcpprobe diff     --stdio "dotnet run --project src/MyServer" --baseline mcp-tools.json
 mcpprobe lint     --http https://localhost:5001/mcp --header "Authorization: Bearer $TOKEN"
+mcpprobe lint     --http http://localhost:5000/sse --transport sse --header "Authorization: Bearer $TOKEN"
 ```
+
+`--http` already tries Streamable HTTP and falls back to legacy SSE. Use `--transport streamable-http` or `--transport sse` to pin a mode (`auto` is the default). Legacy SSE servers usually listen at `/sse` (and `/message`), not at the Streamable HTTP path. If the server maps MCP at a prefix such as `/mcp` and enables legacy SSE, the C# SDK places those endpoints under the prefix (`/mcp/sse` and `/mcp/message`). There is no WebSocket transport.
 
 Exit codes: `0` passed, `1` check failed (breaking change or lint findings), `2` usage or connection error. The server's stderr is printed when it fails to start. `diff` and `lint` also take `--from-file <snapshot>` to check a file without starting a server. Run `mcpprobe <command> --help` for every option.
 

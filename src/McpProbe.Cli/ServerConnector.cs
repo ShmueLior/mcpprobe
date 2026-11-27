@@ -10,7 +10,8 @@ internal sealed record ServerTarget(
     Uri? HttpEndpoint,
     IReadOnlyDictionary<string, string> Headers,
     IReadOnlyDictionary<string, string?> Environment,
-    string? WorkingDirectory);
+    string? WorkingDirectory,
+    HttpTransportMode TransportMode);
 
 internal static class ServerConnector
 {
@@ -42,6 +43,7 @@ internal static class ServerConnector
                 Name = "mcpprobe-target",
                 Endpoint = target.HttpEndpoint,
                 AdditionalHeaders = target.Headers.Count == 0 ? null : new Dictionary<string, string>(target.Headers),
+                TransportMode = target.TransportMode,
             });
         }
         else
