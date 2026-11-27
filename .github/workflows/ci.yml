@@ -53,7 +53,7 @@ jobs:
           dotnet src/McpProbe.Cli/bin/Release/net10.0/McpProbe.Cli.dll lint \
             --stdio "dotnet samples/WeatherServer/bin/Release/net10.0/WeatherServer.dll"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest'
         with:
           name: packages
