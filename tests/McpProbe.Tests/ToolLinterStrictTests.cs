@@ -120,6 +120,8 @@ public sealed class ToolLinterStrictTests
     [Theory]
     [InlineData("""["null","boolean"]""", true)]
     [InlineData("""["string","number","integer"]""", false)]
+    [InlineData("""["string","null"]""", true)]
+    [InlineData("""["null","boolean","object","array","number","string","integer"]""", true)]
     public void MCPP010_FlagsLegalTypeUnions(string type, bool nullCaveat)
     {
         var finding = Single(Lint($$"""{"type":{{type}}}"""), "MCPP010");
@@ -128,6 +130,26 @@ public sealed class ToolLinterStrictTests
         Assert.Contains("anyOf", finding.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("optional", finding.Message.Split("anyOf")[0], StringComparison.Ordinal);
         Assert.Equal(nullCaveat, finding.Message.Contains("nullable: true", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("""["string","null"]""", true)]
+    [InlineData("""["null","boolean"]""", true)]
+    [InlineData("""["string","number","integer"]""", false)]
+    [InlineData("""["null","boolean","object","array","number","string","integer"]""", true)]
+    public void MCPP010_PrintedReportKeepsTheFullMessage(string type, bool nullCaveat)
+    {
+        var surface = ParseSurface("t", $$"""{"type":{{type}}}""", GoodDescription);
+        var report = ToolLinter.Lint(surface, Strict());
+        var finding = Single(report.Findings, "MCPP010");
+        Assert.InRange(finding.Message.Length, 1, 500);
+        var printed = finding.ToString();
+        var reportText = report.ToReport();
+        Assert.DoesNotContain("...", printed, StringComparison.Ordinal);
+        Assert.Contains(finding.Message, printed, StringComparison.Ordinal);
+        Assert.Contains(finding.Message, reportText, StringComparison.Ordinal);
+        Assert.Equal(nullCaveat, printed.Contains("nullable: true", StringComparison.Ordinal));
+        Assert.Equal(nullCaveat, reportText.Contains("nullable: true", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -215,6 +237,18 @@ public sealed class ToolLinterStrictTests
         Assert.Contains(findings, f => f.RuleId == "MCPP011" && f.ParameterName == "outputSchema.properties.result");
     }
 
+    [Theory]
+    [InlineData("""{"type":"array","items":[true,{"type":["string","null"]}]}""", "inputSchema.items[0]", "MCPP009")]
+    [InlineData("""{"type":"array","items":[true,{"type":["string","null"]}]}""", "inputSchema.items[1]", "MCPP010")]
+    [InlineData("""{"type":"array","prefixItems":[true,{}]}""", "inputSchema.prefixItems[0]", "MCPP009")]
+    [InlineData("""{"type":"array","prefixItems":[true,{}]}""", "inputSchema.prefixItems[1]", "MCPP011")]
+    [InlineData("""{"type":"string","contentSchema":true}""", "inputSchema.contentSchema", "MCPP009")]
+    [InlineData("""{"type":"string","contentSchema":{}}""", "inputSchema.contentSchema", "MCPP011")]
+    public void Walk_CoversTupleItems_PrefixItems_AndContentSchema(string schema, string path, string ruleId)
+    {
+        Assert.Contains(Lint(schema), f => f.RuleId == ruleId && f.ParameterName == path);
+    }
+
     [Fact]
     public void Walk_DeepNesting_DoesNotHang()
     {
@@ -265,6 +299,15 @@ public sealed class ToolLinterStrictTests
         var failed = ToolLinter.Lint(union, upgraded);
         Assert.True(failed.Failed);
         Assert.Throws<McpProbeAssertionException>(failed.ThrowIfFailed);
+
+        var boolean = ParseSurface("flag", """{"type":"object","properties":{"city":true}}""", GoodDescription);
+        var none = ToolLinter.Lint(boolean, Strict(o => o.FailOn = LintSeverity.None));
+        Assert.Contains(none.Findings, f => f.RuleId == "MCPP009");
+        Assert.True(none.Failed);
+        var error = Assert.Throws<McpProbeAssertionException>(none.ThrowIfFailed);
+        Assert.Contains("Lint failed.", error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("fail-on: none", error.Message, StringComparison.Ordinal);
+        Assert.Contains("MCPP009", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

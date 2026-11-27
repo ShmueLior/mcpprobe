@@ -59,7 +59,7 @@ public sealed class ToolListAssertions
         return this;
     }
 
-    /// <summary>Lints the tools and fails if any finding is at or above <see cref="LintOptions.FailOn"/>.</summary>
+    /// <summary>Lints the tools and fails when <see cref="LintReport.Failed"/> is <see langword="true"/>.</summary>
     /// <param name="options">Lint options.</param>
     /// <returns>The lint report (it may contain findings below the fail threshold).</returns>
     public LintReport PassesLint(LintOptions? options = null)

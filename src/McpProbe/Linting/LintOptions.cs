@@ -19,8 +19,11 @@ public sealed class LintOptions
     public IDictionary<string, LintSeverity> Severities { get; } = new Dictionary<string, LintSeverity>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets the lowest severity that fails <see cref="LintReport.ThrowIfFailed"/> and the assertion helpers. Defaults to <see cref="LintSeverity.Warning"/>.
-    /// Set it to <see cref="LintSeverity.None"/> to never fail.
+    /// Gets or sets the lowest severity that fails <see cref="LintReport.ThrowIfFailed"/> and the assertion helpers
+    /// for the existing rules (MCPP001-MCPP007). Defaults to <see cref="LintSeverity.Warning"/>.
+    /// Set it to <see cref="LintSeverity.None"/> so those rules never fail. Findings from the schema-portability
+    /// rules (MCPP009-MCPP012) fail only when their effective severity is <see cref="LintSeverity.Error"/>;
+    /// this property does not change that floor.
     /// </summary>
     public LintSeverity FailOn { get; set; } = LintSeverity.Warning;
 

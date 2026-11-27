@@ -139,12 +139,12 @@ internal static class SchemaPortabilityLinter
     {
         if (TryGetPortableTypeUnion(node, out var types) && ctx.Options.IsPortabilityRuleEnabled(LintRules.TypeUnion))
         {
-            var rendered = string.Join(", ", types.Select(t => "{\"type\": \"" + t + "\"}"));
+            var rendered = string.Join(",", types.Select(t => "{\"type\":\"" + t + "\"}"));
             var caveat = types.Contains("null", StringComparer.Ordinal)
-                ? " A dialect with no null type, such as OpenAPI 3.0, still cannot express the null branch directly; there nullability is written nullable: true, which is not JSON Schema."
+                ? " OpenAPI 3.0 writes nullability as nullable: true, which is not JSON Schema."
                 : "";
             Add(ctx, LintRules.TypeUnion, path,
-                $"`type` is an array ({FormatTypeArray(types)}). This is legal JSON Schema, and some model providers recommend it for nullable fields, but it is less portable: a client that maps tool schemas onto a single-type dialect may reject the tool or drop the constraint. Split it into anyOf branches, each with a single type: {{\"anyOf\": [{rendered}]}}. Making the property optional instead is a different contract: absent is not the same as null.{caveat}");
+                $"`type` is an array ({FormatTypeArray(types)}). This is legal JSON Schema but less portable: a client that expects a single type may reject the tool. Split it into anyOf of single types: {{\"anyOf\":[{rendered}]}}. Optional is a different contract: absent is not null.{caveat}");
         }
 
         var reference = JsonSchemaReader.GetString(node, "$ref");

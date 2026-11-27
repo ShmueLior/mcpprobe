@@ -177,6 +177,8 @@ public sealed class CliTests : IDisposable
         Assert.Equal(ExitCodes.CheckFailed, exit);
         Assert.Contains("error MCPP009", output, StringComparison.Ordinal);
         Assert.Contains("warning MCPP010", output, StringComparison.Ordinal);
+        Assert.Contains("nullable: true", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("...", output, StringComparison.Ordinal);
         Assert.Contains("warning MCPP011", output, StringComparison.Ordinal);
         Assert.Contains("warning MCPP012", output, StringComparison.Ordinal);
 

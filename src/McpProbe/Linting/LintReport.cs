@@ -62,7 +62,7 @@ public sealed class LintReport
         if (Failed)
         {
             throw new McpProbeAssertionException(
-                $"Lint failed (fail-on: {LintFinding.SeverityLabel(FailOn)}).\n{ToReport()}");
+                $"Lint failed.\n{ToReport()}");
         }
     }
 
