@@ -173,6 +173,13 @@ public sealed class CliTests : IDisposable
     [InlineData(new[] { "lint", "--http", "ftp://example.com" }, "absolute http:// or https:// URL")]
     [InlineData(new[] { "lint", "--fail-on", "loud", "--stdio", "x" }, "loud")]
     [InlineData(new[] { "frobnicate" }, "frobnicate")]
+    [InlineData(new[] { "snapshot", "--stdio", "x", "--transport", "sse" }, "can only be used with --http")]
+    [InlineData(new[] { "diff", "--from-file", "x.json", "--transport", "sse" }, "can only be used with --http")]
+    [InlineData(new[] { "lint", "--from-file", "x.json", "--transport", "sse" }, "can only be used with --http")]
+    [InlineData(new[] { "lint", "--stdio", "x", "--transport", "SSE" }, "can only be used with --http")]
+    [InlineData(new[] { "lint", "--http", "http://localhost:1/mcp", "--transport", "ws" }, "must be auto, streamable-http, or sse")]
+    [InlineData(new[] { "lint", "--http", "http://localhost:1/mcp", "--transport", "websocket" }, "must be auto, streamable-http, or sse")]
+    [InlineData(new[] { "lint", "--http", "http://localhost:1/mcp", "--transport", "" }, "must be auto, streamable-http, or sse")]
     public async Task UsageErrors_ExitTwo(string[] args, string expected)
     {
         var (exit, _, error) = await RunAsync(args);
@@ -329,6 +336,70 @@ public sealed class CliTests : IDisposable
     }
 
     [Fact]
+    public async Task Http_TransportAutoAndStreamableHttp_WorkAgainstMcpEndpoint()
+    {
+        var (app, baseUrl) = await StartHttpServerAsync();
+        await using var server = app;
+        var url = baseUrl + "/mcp";
+        var snapshot = _dir.File("transport.json");
+
+        var (exit, _, error) = await RunAsync("snapshot", "--http", url, "--header", "X-Api-Key: secret", "--out", snapshot);
+        Assert.True(exit == 0, error);
+        Assert.Equal(3, ToolSurface.Parse(File.ReadAllText(snapshot)).Tools.Count);
+
+        (exit, _, error) = await RunAsync("lint", "--http", url, "--transport", "auto", "--header", "X-Api-Key: secret");
+        Assert.True(exit == 0, error);
+
+        (exit, _, error) = await RunAsync("lint", "--http", url, "--transport", "streamable-http", "--header", "X-Api-Key: secret");
+        Assert.True(exit == 0, error);
+
+        (exit, _, error) = await RunAsync("diff", "--http", url, "--transport", "Auto", "--header", "X-Api-Key: secret", "--baseline", snapshot);
+        Assert.True(exit == 0, error);
+    }
+
+    [Fact]
+    public async Task Http_TransportSseAgainstStreamableHttpEndpoint_IsAnError()
+    {
+        var (app, baseUrl) = await StartHttpServerAsync();
+        await using var server = app;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var (exit, _, error) = await RunAsync(
+            "lint", "--http", baseUrl + "/mcp", "--transport", "sse", "--header", "X-Api-Key: secret", "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.StartsWith("error:", error, StringComparison.Ordinal);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(15), watch.Elapsed.ToString());
+    }
+
+    [Fact]
+    public async Task Http_TransportSse_WorksAgainstLegacySseEndpoint()
+    {
+        var (app, baseUrl) = await StartHttpServerAsync(enableLegacySse: true);
+        await using var server = app;
+
+        // MapMcp("/mcp") with EnableLegacySse maps legacy endpoints under the prefix, at /mcp/sse and /mcp/message.
+        var (exit, output, error) = await RunAsync(
+            "lint", "--http", baseUrl + "/mcp/sse", "--transport", "sse", "--header", "X-Api-Key: secret");
+        Assert.True(exit == 0, error);
+        Assert.Contains("No lint findings.", output, StringComparison.Ordinal);
+
+        (exit, _, error) = await RunAsync(
+            "lint", "--http", baseUrl + "/mcp", "--transport", "streamable-http", "--header", "X-Api-Key: secret");
+        Assert.True(exit == 0, error);
+    }
+
+    [Fact]
+    public async Task Help_TransportDescribesLegacySse()
+    {
+        var (exit, output, _) = await RunAsync("lint", "--help");
+
+        Assert.Equal(0, exit);
+        Assert.Contains("--transport", output, StringComparison.Ordinal);
+        Assert.Contains("legacy SSE", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Help_ExitsZero()
     {
         var (exit, output, _) = await RunAsync("--help");
@@ -339,12 +410,28 @@ public sealed class CliTests : IDisposable
         Assert.Contains("lint", output, StringComparison.Ordinal);
     }
 
-    private static async Task<(WebApplication App, string BaseUrl)> StartHttpServerAsync()
+    private static async Task<(WebApplication App, string BaseUrl)> StartHttpServerAsync(bool enableLegacySse = false)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders();
-        builder.Services.AddMcpServer().WithHttpTransport().WithWeatherFeatures();
+        var mcp = builder.Services.AddMcpServer();
+        if (enableLegacySse)
+        {
+#pragma warning disable MCP9004 // Needed to exercise the legacy SSE client path.
+            mcp.WithHttpTransport(o =>
+            {
+                o.SessionMode = ModelContextProtocol.AspNetCore.HttpServerSessionMode.Stateful;
+                o.EnableLegacySse = true;
+            });
+#pragma warning restore MCP9004
+        }
+        else
+        {
+            mcp.WithHttpTransport();
+        }
+
+        mcp.WithWeatherFeatures();
 
         var app = builder.Build();
         app.Use(async (context, next) =>

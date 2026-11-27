@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format is based on
 ### Added
 
 - GitHub Action (`uses: ShmueLior/mcpprobe@v0.3.0-preview`) and an Azure Pipelines step template that install a pinned `McpProbe.Cli` and run `diff` and `lint`. Reports go to the job summary.
+- `mcpprobe --transport auto|streamable-http|sse` pins the HTTP transport when using `--http`. The default (`auto`) is unchanged: try Streamable HTTP, then fall back to legacy SSE.
 
 ## [0.2.0-preview] - 2026-11-27
 

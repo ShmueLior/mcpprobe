@@ -1,5 +1,6 @@
 using System.CommandLine;
 using McpProbe.Snapshots;
+using ModelContextProtocol.Client;
 
 namespace McpProbe.Cli;
 
@@ -13,7 +14,13 @@ internal sealed class ServerOptions
 
     private readonly Option<string> _http = new("--http")
     {
-        Description = "Connect to a server over HTTP (Streamable HTTP, falling back to SSE), for example http://localhost:5000/mcp.",
+        Description = "Connect to a server over HTTP (Streamable HTTP, falling back to legacy SSE), for example http://localhost:5000/mcp.",
+    };
+
+    private readonly Option<string> _transport = new("--transport")
+    {
+        Description = "HTTP transport to use: auto (try Streamable HTTP, then fall back to legacy SSE), streamable-http, or sse (the legacy SSE transport, not the event stream inside Streamable HTTP). Only with --http.",
+        DefaultValueFactory = _ => "auto",
     };
 
     private readonly Option<string[]> _headers = new("--header")
@@ -56,6 +63,7 @@ internal sealed class ServerOptions
     {
         command.Options.Add(_stdio);
         command.Options.Add(_http);
+        command.Options.Add(_transport);
         command.Options.Add(_headers);
         command.Options.Add(_env);
         command.Options.Add(_cwd);
@@ -79,6 +87,20 @@ internal sealed class ServerOptions
             if (result.GetValue(_http) is { } url && ParseHttpUrl(url) is null)
             {
                 result.AddError("--http must be an absolute http:// or https:// URL.");
+            }
+
+            if (result.GetResult(_transport) is { Implicit: false } transportResult)
+            {
+                if (result.GetResult(_http) is null)
+                {
+                    result.AddError("--transport can only be used with --http.");
+                }
+
+                var token = transportResult.Tokens.Count == 1 ? transportResult.Tokens[0].Value : null;
+                if (ParseTransportMode(token) is null)
+                {
+                    result.AddError("--transport must be auto, streamable-http, or sse.");
+                }
             }
         });
     }
@@ -107,7 +129,8 @@ internal sealed class ServerOptions
             parse.GetValue(_http) is { } url ? ParseHttpUrl(url) : null,
             ParsePairs(parse.GetValue(_headers), ':', "--header", "Name: value"),
             ParsePairs(parse.GetValue(_env), '=', "--env", "NAME=value").ToDictionary(p => p.Key, p => (string?)p.Value, StringComparer.Ordinal),
-            parse.GetValue(_cwd));
+            parse.GetValue(_cwd),
+            ParseTransportMode(parse.GetValue(_transport)) ?? HttpTransportMode.AutoDetect);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
@@ -146,6 +169,14 @@ internal sealed class ServerOptions
 
     private static Uri? ParseHttpUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) ? uri : null;
+
+    private static HttpTransportMode? ParseTransportMode(string? value) => value?.ToLowerInvariant() switch
+    {
+        "auto" => HttpTransportMode.AutoDetect,
+        "streamable-http" => HttpTransportMode.StreamableHttp,
+        "sse" => HttpTransportMode.Sse,
+        _ => null,
+    };
 
     private static Dictionary<string, string> ParsePairs(string[]? values, char separator, string option, string format)
     {
