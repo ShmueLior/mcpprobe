@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/WeatherServer.Tests/WeatherServer.Tests.csproj" />
+    <Project Path="samples/WeatherServer/WeatherServer.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/McpProbe.Cli/McpProbe.Cli.csproj" />
+    <Project Path="src/McpProbe/McpProbe.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/McpProbe.Tests/McpProbe.Tests.csproj" />
+  </Folder>
+</Solution>
