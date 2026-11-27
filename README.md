@@ -103,7 +103,7 @@ report.ThrowIfFailed(); // fails on warnings and errors by default
 | MCPP006 | warning | All parameter names use the same style. |
 | MCPP007 | info | Parameter names aren't vague (`data`, `value`, `input`, ...). |
 
-Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, and the threshold with `LintOptions.FailOn`. Only top-level parameters are checked in 0.1.
+Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, and the threshold with `LintOptions.FailOn`. MCPP003, MCPP006 and MCPP007 also check nested object properties and array items (reported as `home.zip` or `stops[].city`), following local `$ref`s; a schema used in several places is checked once.
 
 ## CLI in CI
 
@@ -142,12 +142,11 @@ GitHub Actions step:
 
 Tools are sorted by name and JSON keys are sorted, so diffs stay small. Comparison is semantic: formatting and line endings don't matter.
 
-## Limitations in 0.1
+## Limitations
 
 - Only local `$ref`s are followed. Remote refs, `$anchor`/`$id` refs and `$dynamicRef` are compared as plain keywords, and so is `$defs` when such a ref is present.
 - `allOf`, `anyOf` and `oneOf` aren't walked; changes inside them are reported as unclassified keyword changes.
 - Two different `pattern`s can't be compared, so any change to one counts as breaking. `format`, `uniqueItems`, `const` and `additionalProperties` aren't classified yet.
-- Lint checks top-level parameters only.
 - The test suite in this repo uses xUnit v3. The quickstart was also run once by hand with NUnit 4, MSTest 4 and TUnit 1.87 against the packed library; those checks aren't part of CI yet.
 
 ## Contributing

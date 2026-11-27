@@ -118,7 +118,8 @@ internal static class JsonSchemaReader
         };
     }
 
-    private static bool TryFindTarget(string reference, JsonNode? root, out JsonNode? target)
+    /// <summary>Finds the schema a local <c>$ref</c> points to, following ref chains, without copying it.</summary>
+    public static bool TryFindTarget(string reference, JsonNode? root, out JsonNode? target)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         target = null;
