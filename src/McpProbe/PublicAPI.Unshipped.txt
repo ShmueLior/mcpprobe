@@ -182,6 +182,7 @@ McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.AnnotationsChanged = 4 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.BecameOptional = 8 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.BecameRequired = 7 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.ConstraintChanged = 14 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.DescriptionChanged = 3 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.EnumChanged = 10 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.KeywordChanged = 13 -> McpProbe.Snapshots.ToolSurfaceChangeKind

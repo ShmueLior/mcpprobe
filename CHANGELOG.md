@@ -8,7 +8,12 @@ All notable changes to this project are documented here. The format is based on
 ### Added
 
 - Snapshot diffs follow local `$ref`s (`#/$defs/...`, `#/definitions/...`, `#/properties/...`), so changes inside referenced schemas are classified like inline ones. Recursive schemas are handled.
+- Constraint keywords are classified: `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties`, `multipleOf` and `pattern`. Tighter input constraints are breaking, looser ones aren't; outputs are the other way round. New change kind `ToolSurfaceChangeKind.ConstraintChanged`.
 - Release workflow that publishes packages to nuget.org with Trusted Publishing.
+
+### Changed
+
+- A tighter input constraint (for example a lower `maximum` from `[Range]`) now fails the snapshot check. In 0.1 it passed as an unclassified "review by hand" change.
 
 ## [0.1.0-preview] - 2026-11-27
 

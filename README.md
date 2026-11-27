@@ -65,10 +65,10 @@ public Task Tool_surface_matches_snapshot() => probe.VerifyToolSnapshotAsync();
 
 1. The first run writes `mcp-tools.json` next to the test file and fails, so you look at it. Commit it.
 2. Later runs compare the live tool surface with the file:
-   - **Breaking changes fail the test**: removed tool, removed parameter, newly required parameter, narrowed type or enum, and removed or narrowed output fields. A removed parameter that looks renamed gets a hint.
-   - **Non-breaking changes pass**: added tools, optional parameters, descriptions, annotations, widened types. They are in the returned `ToolSurfaceDiff`, and `SnapshotOptions.Log` gets a report (for example `Log = output.WriteLine` with xUnit's `ITestOutputHelper`).
+   - **Breaking changes fail the test**: removed tool, removed parameter, newly required parameter, narrowed type or enum, tighter input constraints (`minimum`, `maxLength`, `minItems`, `multipleOf`, a new or changed `pattern`, ...), and removed or narrowed output fields. A removed parameter that looks renamed gets a hint.
+   - **Non-breaking changes pass**: added tools, optional parameters, descriptions, annotations, widened types, looser input constraints. They are in the returned `ToolSurfaceDiff`, and `SnapshotOptions.Log` gets a report (for example `Log = output.WriteLine` with xUnit's `ITestOutputHelper`).
    - Local `$ref`s (`#/$defs/...`, `#/definitions/...`, and the `#/properties/...` refs the C# SDK emits for recursive types) are followed, so a change inside a referenced schema is classified like an inline one.
-   - Schema keywords McpProbe doesn't classify yet (such as `pattern` or `minimum`) are reported as non-breaking, marked "review by hand".
+   - Schema keywords McpProbe doesn't classify yet (such as `format` or `uniqueItems`) are reported as non-breaking, marked "review by hand".
 3. On a failure, the current surface is written to `mcp-tools.received.json`. To accept the change, run with `MCPPROBE_UPDATE_SNAPSHOTS=1` (or set `SnapshotOptions.Update`), review the diff in git, and commit.
 
 On CI (`CI` or `TF_BUILD` set), a missing snapshot is not created: the test fails. Set `SnapshotOptions.FailOnNonBreakingChanges` to fail on every change.
@@ -146,7 +146,7 @@ Tools are sorted by name and JSON keys are sorted, so diffs stay small. Comparis
 
 - Only local `$ref`s are followed. Remote refs, `$anchor`/`$id` refs and `$dynamicRef` are compared as plain keywords, and so is `$defs` when such a ref is present.
 - `allOf`, `anyOf` and `oneOf` aren't walked; changes inside them are reported as unclassified keyword changes.
-- Constraint keywords (`minimum`, `maxLength`, `pattern`, ...) aren't classified as breaking or non-breaking.
+- Two different `pattern`s can't be compared, so any change to one counts as breaking. `format`, `uniqueItems`, `const` and `additionalProperties` aren't classified yet.
 - Lint checks top-level parameters only.
 - The test suite in this repo uses xUnit v3. The quickstart was also run once by hand with NUnit 4, MSTest 4 and TUnit 1.87 against the packed library; those checks aren't part of CI yet.
 

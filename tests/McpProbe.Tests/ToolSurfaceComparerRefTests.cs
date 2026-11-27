@@ -137,7 +137,7 @@ public sealed class ToolSurfaceComparerRefTests
 
         // The SDK puts "items":{} next to some refs; it must not hide the referenced items schema.
         Assert.False(Compare(Schema(""), Schema(""","items":{}""")).HasChanges);
-        var gap = Assert.Single(Compare(Schema(""), Schema(""","minimum":1""")).Changes);
+        var gap = Assert.Single(Compare(Schema(""), Schema(""","format":"email" """)).Changes);
         Assert.Equal((ToolSurfaceChangeKind.KeywordChanged, "input.home"), (gap.Kind, gap.Path));
     }
 
