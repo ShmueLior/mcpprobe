@@ -64,6 +64,8 @@ McpProbe.Linting.LintFinding.Severity.init -> void
 McpProbe.Linting.LintFinding.ToolName.get -> string!
 McpProbe.Linting.LintFinding.ToolName.init -> void
 McpProbe.Linting.LintOptions
+McpProbe.Linting.LintOptions.CheckNestedParameters.get -> bool
+McpProbe.Linting.LintOptions.CheckNestedParameters.set -> void
 McpProbe.Linting.LintOptions.FailOn.get -> McpProbe.Linting.LintSeverity
 McpProbe.Linting.LintOptions.FailOn.set -> void
 McpProbe.Linting.LintOptions.LintOptions() -> void
@@ -182,6 +184,7 @@ McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.AnnotationsChanged = 4 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.BecameOptional = 8 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.BecameRequired = 7 -> McpProbe.Snapshots.ToolSurfaceChangeKind
+McpProbe.Snapshots.ToolSurfaceChangeKind.ConstraintChanged = 14 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.DescriptionChanged = 3 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.EnumChanged = 10 -> McpProbe.Snapshots.ToolSurfaceChangeKind
 McpProbe.Snapshots.ToolSurfaceChangeKind.KeywordChanged = 13 -> McpProbe.Snapshots.ToolSurfaceChangeKind

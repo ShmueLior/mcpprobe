@@ -140,6 +140,18 @@ public sealed class CliTests : IDisposable
         Assert.Contains("error MCPP002 search", output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Lint_NestedIsOptIn()
+    {
+        var schema = """{"type":"object","properties":{"home":{"type":"object","description":"Home address.","properties":{"zip":{"type":"string"}}}}}""";
+        var file = WriteSurface("nested.json", Surface(Tool("search", schema, description: "Searches the catalog for matching items.")));
+
+        Assert.Equal(ExitCodes.Success, (await RunAsync("lint", "--from-file", file)).Exit);
+        var (exit, output, _) = await RunAsync("lint", "--from-file", file, "--nested");
+        Assert.Equal(ExitCodes.CheckFailed, exit);
+        Assert.Contains("MCPP003 search.home.zip", output, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("MCPP999=none")]
     [InlineData("MCPP002")]

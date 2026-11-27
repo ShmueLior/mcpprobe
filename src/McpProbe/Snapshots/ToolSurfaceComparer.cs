@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using McpProbe.Internal;
 
@@ -10,21 +11,37 @@ namespace McpProbe.Snapshots;
 /// <para>Input schemas (what clients send) may widen but not narrow. Output schemas (what clients read) may narrow but not widen.</para>
 /// <para>
 /// Breaking: a removed tool, a removed parameter, a new required parameter, a parameter that became required,
-/// a narrowed input type or a removed enum value. For output schemas: a removed output schema or property, a property that
-/// became optional, a widened type or a new enum value.
+/// a narrowed input type, a removed enum value or a tighter input constraint (a higher <c>minimum</c>, a lower <c>maxLength</c>,
+/// a new or changed <c>pattern</c> and so on). For output schemas: a removed output schema or property, a property that
+/// became optional, a widened type, a new enum value or a looser constraint.
 /// </para>
 /// <para>
 /// Non-breaking: added tools, optional parameters and output properties, description, title and annotation changes,
-/// and widened input types. Other JSON Schema keywords (<c>minimum</c>, <c>pattern</c>, <c>$ref</c> and so on) are
+/// widened input types and looser input constraints. Other JSON Schema keywords (<c>format</c>, <c>allOf</c> and so on) are
 /// reported as <see cref="ToolSurfaceChangeKind.KeywordChanged"/> without being classified.
+/// </para>
+/// <para>
+/// Local <c>$ref</c>s (<c>#/$defs/...</c>, <c>#/definitions/...</c>, <c>#/properties/...</c>) are followed, so a change inside a
+/// referenced schema is classified like an inline one, at the path where it's used. Other refs are compared as plain keywords.
 /// </para>
 /// </remarks>
 public static class ToolSurfaceComparer
 {
+    // Schemas whose refs fan out (each def used several times by the next) grow exponentially when expanded.
+    // Past this many expansions per schema, refs are compared as plain keywords, like before refs were followed.
+    private const int MaxRefExpansions = 1000;
+
     private static readonly HashSet<string> s_handledKeywords = new(StringComparer.Ordinal)
     {
         "type", "properties", "required", "enum", "items", "description",
     };
+
+    // Bounds and whether a larger value makes them tighter (lower bounds) or looser (upper bounds).
+    private static readonly (string Keyword, bool LargerIsTighter)[] s_bounds =
+    [
+        ("minimum", true), ("exclusiveMinimum", true), ("minLength", true), ("minItems", true), ("minProperties", true),
+        ("maximum", false), ("exclusiveMaximum", false), ("maxLength", false), ("maxItems", false), ("maxProperties", false),
+    ];
 
     /// <summary>Compares a baseline surface with the current one.</summary>
     /// <param name="baseline">The committed (expected) surface.</param>
@@ -83,7 +100,7 @@ public static class ToolSurfaceComparer
         CompareAnnotations(tool, old.Annotations, cur.Annotations, changes);
 
         var context = new Context(tool, changes);
-        CompareSchema(context, Side.Input, string.Empty, JsonSchemaReader.FromElement(old.InputSchema), JsonSchemaReader.FromElement(cur.InputSchema));
+        CompareRoot(context, Side.Input, JsonSchemaReader.FromElement(old.InputSchema), JsonSchemaReader.FromElement(cur.InputSchema));
 
         switch (old.OutputSchema, cur.OutputSchema)
         {
@@ -96,9 +113,19 @@ public static class ToolSurfaceComparer
                 changes.Add(new(tool, "output", ToolSurfaceChangeKind.OutputSchemaRemoved, ChangeSeverity.Breaking, "Output schema was removed."));
                 break;
             case ({ } o, { } c):
-                CompareSchema(context, Side.Output, string.Empty, JsonSchemaReader.FromElement(o), JsonSchemaReader.FromElement(c));
+                CompareRoot(context, Side.Output, JsonSchemaReader.FromElement(o), JsonSchemaReader.FromElement(c));
                 break;
         }
+    }
+
+    private static void CompareRoot(Context context, Side side, JsonNode? old, JsonNode? cur)
+    {
+        context.OldRoot = old;
+        context.CurRoot = cur;
+        // When every ref resolves, changes inside $defs show up where they're used, so don't report the raw keyword too.
+        context.SkipDefinitions = JsonSchemaReader.AllRefsResolve(old) && JsonSchemaReader.AllRefsResolve(cur);
+        context.RefExpansions = 0;
+        CompareSchema(context, side, string.Empty, old, cur);
     }
 
     private static void CompareAnnotations(string tool, ToolContractAnnotations? old, ToolContractAnnotations? cur, List<ToolSurfaceChange> changes)
@@ -127,6 +154,40 @@ public static class ToolSurfaceComparer
 
     private static void CompareSchema(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
     {
+        var oldIsRef = JsonSchemaReader.TryResolveRef(old, context.OldRoot, out var oldResolved, out var oldRef);
+        var curIsRef = JsonSchemaReader.TryResolveRef(cur, context.CurRoot, out var curResolved, out var curRef);
+        if ((!oldIsRef && !curIsRef) || context.RefExpansions >= MaxRefExpansions)
+        {
+            if (oldIsRef || curIsRef)
+            {
+                // A ref is left unexpanded, so report $defs changes at the root again (the root's keywords are compared last).
+                context.SkipDefinitions = false;
+            }
+
+            CompareResolved(context, side, path, old, cur);
+            return;
+        }
+
+        // Recursive schemas: if this pair of refs is already being compared further up, it's covered there.
+        if (!context.Expanding.Add((oldRef, curRef)))
+        {
+            return;
+        }
+
+        context.RefExpansions++;
+
+        try
+        {
+            CompareResolved(context, side, path, oldIsRef ? oldResolved : old, curIsRef ? curResolved : cur);
+        }
+        finally
+        {
+            context.Expanding.Remove((oldRef, curRef));
+        }
+    }
+
+    private static void CompareResolved(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
+    {
         CompareType(context, side, path, old, cur);
         CompareEnum(context, side, path, old, cur);
 
@@ -145,7 +206,112 @@ public static class ToolSurfaceComparer
             CompareSchema(context, side, path + "[]", oldItems as JsonObject, curItems as JsonObject);
         }
 
-        CompareOtherKeywords(context, side, path, old, cur);
+        var classified = CompareConstraints(context, side, path, old, cur);
+        CompareOtherKeywords(context, side, path, old, cur, classified);
+    }
+
+    /// <summary>Classifies bounds, <c>multipleOf</c> and <c>pattern</c>; returns the keywords it handled.</summary>
+    private static HashSet<string> CompareConstraints(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
+    {
+        var handled = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (keyword, largerIsTighter) in s_bounds)
+        {
+            var before = JsonSchemaReader.Get(old, keyword);
+            var after = JsonSchemaReader.Get(cur, keyword);
+            if (before is null && after is null)
+            {
+                continue;
+            }
+
+            if ((before is not null && !TryGetNumber(before, out _)) || (after is not null && !TryGetNumber(after, out _)))
+            {
+                continue; // For example draft 4's boolean exclusiveMinimum: left to CompareOtherKeywords.
+            }
+
+            handled.Add(keyword);
+            bool tighter;
+            if (before is null || after is null)
+            {
+                tighter = before is null;
+            }
+            else
+            {
+                TryGetNumber(before, out var b);
+                TryGetNumber(after, out var a);
+                if (a == b)
+                {
+                    continue;
+                }
+
+                tighter = largerIsTighter ? a > b : a < b;
+            }
+
+            AddConstraintChange(context, side, path, keyword, before, after, tighter);
+        }
+
+        var oldMultiple = JsonSchemaReader.Get(old, "multipleOf");
+        var curMultiple = JsonSchemaReader.Get(cur, "multipleOf");
+        if ((oldMultiple is not null || curMultiple is not null) &&
+            (oldMultiple is null || TryGetDecimal(oldMultiple, out _)) && (curMultiple is null || TryGetDecimal(curMultiple, out _)))
+        {
+            handled.Add("multipleOf");
+            TryGetDecimal(oldMultiple, out var b);
+            TryGetDecimal(curMultiple, out var a);
+            if (oldMultiple is null || curMultiple is null || a != b)
+            {
+                // Every multiple of b is a multiple of a exactly when b is a multiple of a. 3 -> 2 is neither.
+                bool? tighter = oldMultiple is null ? true : curMultiple is null ? false : b % a == 0 ? false : a % b == 0 ? true : null;
+                AddConstraintChange(context, side, path, "multipleOf", oldMultiple, curMultiple, tighter);
+            }
+        }
+
+        var oldPattern = JsonSchemaReader.Get(old, "pattern");
+        var curPattern = JsonSchemaReader.Get(cur, "pattern");
+        if ((oldPattern is not null || curPattern is not null) &&
+            (oldPattern is null || JsonSchemaReader.GetString(old, "pattern") is not null) && (curPattern is null || JsonSchemaReader.GetString(cur, "pattern") is not null))
+        {
+            handled.Add("pattern");
+            if (!string.Equals(JsonSchemaReader.GetString(old, "pattern"), JsonSchemaReader.GetString(cur, "pattern"), StringComparison.Ordinal))
+            {
+                // Two regexes can't be compared, so a changed pattern counts as neither tighter nor looser.
+                bool? tighter = oldPattern is null ? true : curPattern is null ? false : null;
+                AddConstraintChange(context, side, path, "pattern", oldPattern, curPattern, tighter);
+            }
+        }
+
+        return handled;
+    }
+
+    // tighter is null when the new constraint is neither tighter nor looser, which breaks both ways.
+    private static void AddConstraintChange(Context context, Side side, string path, string keyword, JsonNode? before, JsonNode? after, bool? tighter)
+    {
+        // Inputs may accept more than before; outputs may promise more than before.
+        var severity = tighter is null || tighter == (side == Side.Input) ? ChangeSeverity.Breaking : ChangeSeverity.NonBreaking;
+        var direction = tighter switch
+        {
+            true => "tighter",
+            false => "looser",
+            null => "neither tighter nor looser",
+        };
+        var subject = path.Length == 0 ? (side == Side.Input ? "the input schema" : "the output schema") : Describe(side, path);
+        context.Add(side, path, ToolSurfaceChangeKind.ConstraintChanged, severity,
+            $"'{keyword}' on {subject} changed from {Show(before)} to {Show(after)} ({direction}).");
+
+        // Patterns as written: ToJsonString would escape characters like '+'.
+        static string Show(JsonNode? node) =>
+            node is JsonValue v && v.TryGetValue(out string? s) ? (s.Length <= 60 ? $"'{s}'" : $"'{s[..57]}...'") : Preview(node is not null, node);
+    }
+
+    private static bool TryGetNumber(JsonNode? node, out double value)
+    {
+        value = 0;
+        return node is JsonValue v && v.GetValueKind() == JsonValueKind.Number && v.TryGetValue(out value) && double.IsFinite(value);
+    }
+
+    private static bool TryGetDecimal(JsonNode? node, out decimal value)
+    {
+        value = 0;
+        return node is JsonValue v && v.GetValueKind() == JsonValueKind.Number && v.TryGetValue(out value) && value > 0;
     }
 
     private static void CompareType(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
@@ -279,13 +445,14 @@ public static class ToolSurfaceComparer
         }
     }
 
-    private static void CompareOtherKeywords(Context context, Side side, string path, JsonNode? old, JsonNode? cur)
+    private static void CompareOtherKeywords(Context context, Side side, string path, JsonNode? old, JsonNode? cur, HashSet<string> classified)
     {
         var oldObj = old as JsonObject;
         var curObj = cur as JsonObject;
         var keys = (oldObj?.Select(p => p.Key) ?? [])
             .Union(curObj?.Select(p => p.Key) ?? [], StringComparer.Ordinal)
-            .Where(k => !s_handledKeywords.Contains(k))
+            .Where(k => !s_handledKeywords.Contains(k) && !classified.Contains(k))
+            .Where(k => !(path.Length == 0 && context.SkipDefinitions && k is "$defs" or "definitions"))
             .OrderBy(k => k, StringComparer.Ordinal);
 
         foreach (var key in keys)
@@ -371,6 +538,17 @@ public static class ToolSurfaceComparer
 
     private sealed class Context(string tool, List<ToolSurfaceChange> changes)
     {
+        public JsonNode? OldRoot { get; set; }
+
+        public JsonNode? CurRoot { get; set; }
+
+        public bool SkipDefinitions { get; set; }
+
+        public int RefExpansions { get; set; }
+
+        /// <summary>The (baseline, current) ref pairs being compared on the current path.</summary>
+        public HashSet<(string? Old, string? Cur)> Expanding { get; } = [];
+
         public void Add(Side side, string path, ToolSurfaceChangeKind kind, ChangeSeverity severity, string message)
         {
             var prefix = side == Side.Input ? "input" : "output";

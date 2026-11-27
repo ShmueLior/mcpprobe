@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Nodes;
 using McpProbe.Internal;
 using McpProbe.Snapshots;
 using ModelContextProtocol.Client;
@@ -7,9 +8,12 @@ using ModelContextProtocol.Protocol;
 namespace McpProbe.Linting;
 
 /// <summary>
-/// Checks tool names, descriptions and top-level parameters for problems that make tools harder for models to use.
+/// Checks tool names, descriptions and parameters for problems that make tools harder for models to use.
 /// </summary>
-/// <remarks>Parameter rules look at top-level parameters only; nested object properties are not linted in 0.1.</remarks>
+/// <remarks>
+/// Parameter rules check top-level parameters. With <see cref="LintOptions.CheckNestedParameters"/> they also check nested
+/// object properties and array items, reported as <c>address.zip</c> or <c>stops[].city</c>, following local <c>$ref</c>s.
+/// </remarks>
 public static class ToolLinter
 {
     /// <summary>Lints protocol tools.</summary>
@@ -46,7 +50,7 @@ public static class ToolLinter
         }
 
         var findings = new List<LintFinding>();
-        var parameterNames = new List<(string Tool, string Parameter)>();
+        var parameterNames = new List<(string Tool, string Path, string Name)>();
 
         foreach (var tool in surface.Tools)
         {
@@ -54,28 +58,7 @@ public static class ToolLinter
             CheckToolDescription(tool, options, findings);
 
             var schema = JsonSchemaReader.FromElement(tool.InputSchema);
-            var properties = JsonSchemaReader.GetProperties(schema);
-            if (properties is null)
-            {
-                continue;
-            }
-
-            foreach (var (name, property) in properties)
-            {
-                parameterNames.Add((tool.Name, name));
-
-                if (string.IsNullOrWhiteSpace(JsonSchemaReader.GetString(property, "description")))
-                {
-                    Add(findings, options, LintRules.ParameterMissingDescription, tool.Name, name,
-                        $"Parameter '{name}' has no description. Say what it is and what format it expects.");
-                }
-
-                if (options.VagueParameterNames.Contains(name))
-                {
-                    Add(findings, options, LintRules.VagueParameterName, tool.Name, name,
-                        $"Parameter name '{name}' is vague. Use a name that says what the value is (for example 'city' instead of 'value').");
-                }
-            }
+            LintProperties(new Walk(tool.Name, schema, options, findings, parameterNames), schema, prefix: null);
         }
 
         CheckConsistency(
@@ -85,7 +68,7 @@ public static class ToolLinter
             options,
             findings);
         CheckConsistency(
-            parameterNames.Select(p => (p.Tool, (string?)p.Parameter, p.Parameter)),
+            parameterNames.Select(p => (p.Tool, (string?)p.Path, p.Name)),
             LintRules.InconsistentParameterNaming,
             "Parameter",
             options,
@@ -98,6 +81,61 @@ public static class ToolLinter
             .ThenBy(f => f.RuleId, StringComparer.Ordinal)
             .ToList();
         return new LintReport(ordered, options.FailOn);
+    }
+
+    private static void LintProperties(Walk walk, JsonNode? schema, string? prefix)
+    {
+        var nested = walk.Options.CheckNestedParameters;
+
+        // Follow local refs. Each schema is linted once, at the first path that reaches it, so a type used
+        // twice or a recursive type doesn't repeat its findings.
+        if (nested && JsonSchemaReader.GetString(schema, "$ref") is { } reference && JsonSchemaReader.TryFindTarget(reference, walk.Root, out var target))
+        {
+            schema = target;
+        }
+
+        if (schema is null || !walk.Linted.Add(schema))
+        {
+            return;
+        }
+
+        var (tool, options, findings) = (walk.Tool, walk.Options, walk.Findings);
+        if (nested && JsonSchemaReader.Get(schema, "items") is JsonObject items)
+        {
+            LintProperties(walk, items, prefix + "[]");
+        }
+
+        var properties = JsonSchemaReader.GetProperties(schema);
+        if (properties is null)
+        {
+            return;
+        }
+
+        foreach (var (name, property) in properties)
+        {
+            var path = prefix is null ? name : $"{prefix}.{name}";
+            var noun = prefix is null ? "Parameter" : "Property";
+            walk.ParameterNames.Add((tool, path, name));
+
+            // A description next to a $ref counts, and so does the referenced schema's own.
+            var described = nested && JsonSchemaReader.TryResolveRef(property, walk.Root, out var resolved, out _) ? resolved : property;
+            if (string.IsNullOrWhiteSpace(JsonSchemaReader.GetString(described, "description")))
+            {
+                Add(findings, options, LintRules.ParameterMissingDescription, tool, path,
+                    $"{noun} '{path}' has no description. Say what it is and what format it expects.");
+            }
+
+            if (options.VagueParameterNames.Contains(name))
+            {
+                Add(findings, options, LintRules.VagueParameterName, tool, path,
+                    $"{noun} name '{path}' is vague. Use a name that says what the value is (for example 'city' instead of 'value').");
+            }
+
+            if (nested)
+            {
+                LintProperties(walk, property, path);
+            }
+        }
     }
 
     private static void CheckToolName(string name, LintOptions options, List<LintFinding> findings)
@@ -177,5 +215,20 @@ public static class ToolLinter
         {
             findings.Add(new LintFinding(rule.Id, severity, tool, parameter, message));
         }
+    }
+
+    private sealed class Walk(string tool, JsonNode? root, LintOptions options, List<LintFinding> findings, List<(string Tool, string Path, string Name)> parameterNames)
+    {
+        public string Tool { get; } = tool;
+
+        public JsonNode? Root { get; } = root;
+
+        public LintOptions Options { get; } = options;
+
+        public List<LintFinding> Findings { get; } = findings;
+
+        public List<(string Tool, string Path, string Name)> ParameterNames { get; } = parameterNames;
+
+        public HashSet<JsonNode> Linted { get; } = new(ReferenceEqualityComparer.Instance);
     }
 }

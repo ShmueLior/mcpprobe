@@ -54,8 +54,11 @@ public enum ToolSurfaceChangeKind
     /// <summary>A tool stopped declaring an output schema.</summary>
     OutputSchemaRemoved,
 
-    /// <summary>Another JSON Schema keyword changed. McpProbe 0.1 does not classify these; review them by hand.</summary>
+    /// <summary>Another JSON Schema keyword changed. McpProbe doesn't classify these; review them by hand.</summary>
     KeywordChanged,
+
+    /// <summary>A bound (<c>minimum</c>, <c>maxLength</c>, <c>minItems</c> and so on), <c>multipleOf</c> or <c>pattern</c> changed.</summary>
+    ConstraintChanged,
 }
 
 /// <summary>One difference between a baseline and a current tool surface.</summary>

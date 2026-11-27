@@ -132,17 +132,23 @@ internal static class CliApp
             AllowMultipleArgumentsPerToken = false,
         };
 
+        var nested = new Option<bool>("--nested")
+        {
+            Description = "Also check nested object properties and array items, not just top-level parameters.",
+        };
         var command = new Command("lint", "Lint tool names, descriptions and parameters. Exits 1 on findings at or above --fail-on.");
         server.AddTo(command);
         command.Options.Add(failOn);
         command.Options.Add(minLength);
         command.Options.Add(rules);
+        command.Options.Add(nested);
         command.SetAction((parse, ct) => RunGuardedAsync(stderr, async () =>
         {
             var options = new LintOptions
             {
                 FailOn = ParseSeverity(parse.GetValue(failOn)!),
                 MinToolDescriptionLength = parse.GetValue(minLength),
+                CheckNestedParameters = parse.GetValue(nested),
             };
 
             foreach (var rule in parse.GetValue(rules) ?? [])
