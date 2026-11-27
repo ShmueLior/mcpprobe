@@ -57,7 +57,10 @@ public enum ToolSurfaceChangeKind
     /// <summary>Another JSON Schema keyword changed. McpProbe doesn't classify these; review them by hand.</summary>
     KeywordChanged,
 
-    /// <summary>A bound (<c>minimum</c>, <c>maxLength</c>, <c>minItems</c> and so on), <c>multipleOf</c> or <c>pattern</c> changed.</summary>
+    /// <summary>
+    /// A bound (<c>minimum</c>, <c>maxLength</c>, <c>minItems</c> and so on), <c>multipleOf</c>, <c>pattern</c>, <c>format</c>,
+    /// <c>uniqueItems</c>, <c>const</c> or <c>additionalProperties</c> (and its siblings) changed.
+    /// </summary>
     ConstraintChanged,
 }
 
