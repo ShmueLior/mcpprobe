@@ -18,8 +18,22 @@ public sealed class LintReport
     /// <summary>Gets the lowest severity that counts as a failure.</summary>
     public LintSeverity FailOn { get; }
 
-    /// <summary>Gets whether any finding is at or above <see cref="FailOn"/>.</summary>
-    public bool Failed => FailOn != LintSeverity.None && Findings.Any(f => f.Severity >= FailOn);
+    /// <summary>
+    /// Gets whether the run failed. Findings from the existing rules fail when they are at or above <see cref="FailOn"/>.
+    /// Findings from the schema-portability rules (MCPP009-MCPP012) fail only when their effective severity is
+    /// <see cref="LintSeverity.Error"/>; <see cref="FailOn"/> does not change that floor.
+    /// </summary>
+    public bool Failed => Findings.Any(Fails);
+
+    private bool Fails(LintFinding finding)
+    {
+        if (LintRules.IsPortabilityRule(finding.RuleId))
+        {
+            return finding.Severity == LintSeverity.Error;
+        }
+
+        return FailOn != LintSeverity.None && finding.Severity >= FailOn;
+    }
 
     /// <summary>Formats the findings as plain text, one per line.</summary>
     /// <returns>The report.</returns>
@@ -42,13 +56,13 @@ public sealed class LintReport
     }
 
     /// <summary>Throws when <see cref="Failed"/> is <see langword="true"/>.</summary>
-    /// <exception cref="McpProbeAssertionException">A finding is at or above <see cref="FailOn"/>.</exception>
+    /// <exception cref="McpProbeAssertionException">A finding failed the run (see <see cref="Failed"/>).</exception>
     public void ThrowIfFailed()
     {
         if (Failed)
         {
             throw new McpProbeAssertionException(
-                $"Lint failed (fail-on: {LintFinding.SeverityLabel(FailOn)}).\n{ToReport()}");
+                $"Lint failed.\n{ToReport()}");
         }
     }
 

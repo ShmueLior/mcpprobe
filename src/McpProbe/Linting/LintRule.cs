@@ -30,6 +30,20 @@ public static class LintRules
     /// <summary>MCPP007: a parameter has a vague name such as <c>data</c> or <c>value</c>.</summary>
     public static readonly LintRule VagueParameterName = new("MCPP007", "Parameter name is vague", LintSeverity.Info);
 
+    // MCPP008 is reserved for https://github.com/ShmueLior/mcpprobe/issues/8 (required entry with no property).
+
+    /// <summary>MCPP009: a bare <c>true</c> or <c>false</c> is used where a schema object is expected. Requires <see cref="LintOptions.Strict"/>, or a severity override.</summary>
+    public static readonly LintRule BooleanSchema = new("MCPP009", "Bare boolean used where a schema object is expected", LintSeverity.Error);
+
+    /// <summary>MCPP010: <c>type</c> is a legal type union, which some clients handle unevenly. Requires <see cref="LintOptions.Strict"/>, or a severity override.</summary>
+    public static readonly LintRule TypeUnion = new("MCPP010", "Schema type is a union array", LintSeverity.Warning);
+
+    /// <summary>MCPP011: a schema has no constraining keyword, so it accepts any value. Requires <see cref="LintOptions.Strict"/>, or a severity override.</summary>
+    public static readonly LintRule UntypedSchema = new("MCPP011", "Schema has no constraining keyword", LintSeverity.Warning);
+
+    /// <summary>MCPP012: a <c>$ref</c> points outside the document. Requires <see cref="LintOptions.Strict"/>, or a severity override.</summary>
+    public static readonly LintRule RemoteRef = new("MCPP012", "Schema $ref points outside this document", LintSeverity.Warning);
+
     /// <summary>Gets all built-in rules, ordered by id.</summary>
     public static IReadOnlyList<LintRule> All { get; } =
     [
@@ -40,5 +54,15 @@ public static class LintRules
         InconsistentToolNaming,
         InconsistentParameterNaming,
         VagueParameterName,
+        BooleanSchema,
+        TypeUnion,
+        UntypedSchema,
+        RemoteRef,
     ];
+
+    internal static bool IsPortabilityRule(string ruleId) =>
+        ruleId.Equals(BooleanSchema.Id, StringComparison.OrdinalIgnoreCase) ||
+        ruleId.Equals(TypeUnion.Id, StringComparison.OrdinalIgnoreCase) ||
+        ruleId.Equals(UntypedSchema.Id, StringComparison.OrdinalIgnoreCase) ||
+        ruleId.Equals(RemoteRef.Id, StringComparison.OrdinalIgnoreCase);
 }

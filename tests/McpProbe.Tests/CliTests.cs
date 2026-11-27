@@ -152,8 +152,48 @@ public sealed class CliTests : IDisposable
         Assert.Contains("MCPP003 search.home.zip", output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Lint_SampleServerOverStdio_PassesWithStrict()
+    {
+        var (exit, output, error) = await RunAsync("lint", "--stdio", StdioCommand, "--strict");
+
+        Assert.True(exit == 0, error);
+        Assert.Contains("No lint findings.", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Lint_Strict_IsOptInAndFailsOnlyOnPortabilityErrors()
+    {
+        var allRules = """{"type":"object","properties":{"city":{"description":"City name.","anyOf":[true,{"type":["null","boolean"]},{},{"$ref":"https://example.com/schema.json"}]}}}""";
+        var warningsOnly = """{"type":"object","properties":{"city":{"description":"City name.","type":["null","boolean"]}}}""";
+        var allFile = WriteSurface("all.json", Surface(Tool("unportable", allRules, "A tool whose schema exercises each portability rule.")));
+        var warnFile = WriteSurface("warn.json", Surface(Tool("union", warningsOnly, "A tool whose schema uses a type union.")));
+
+        var off = await RunAsync("lint", "--from-file", allFile);
+        Assert.Equal(ExitCodes.Success, off.Exit);
+        Assert.Contains("No lint findings.", off.Out, StringComparison.Ordinal);
+
+        var (exit, output, _) = await RunAsync("lint", "--from-file", allFile, "--strict");
+        Assert.Equal(ExitCodes.CheckFailed, exit);
+        Assert.Contains("error MCPP009", output, StringComparison.Ordinal);
+        Assert.Contains("warning MCPP010", output, StringComparison.Ordinal);
+        Assert.Contains("nullable: true", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("...", output, StringComparison.Ordinal);
+        Assert.Contains("warning MCPP011", output, StringComparison.Ordinal);
+        Assert.Contains("warning MCPP012", output, StringComparison.Ordinal);
+
+        var warnings = await RunAsync("lint", "--from-file", warnFile, "--strict");
+        Assert.Equal(ExitCodes.Success, warnings.Exit);
+        Assert.Contains("warning MCPP010", warnings.Out, StringComparison.Ordinal);
+
+        var upgraded = await RunAsync("lint", "--from-file", warnFile, "--rule", "MCPP010=error");
+        Assert.Equal(ExitCodes.CheckFailed, upgraded.Exit);
+        Assert.Contains("error MCPP010", upgraded.Out, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("MCPP999=none")]
+    [InlineData("MCPP008=error")]
     [InlineData("MCPP002")]
     [InlineData("MCPP002=loud")]
     public async Task Lint_InvalidRuleIsAnError(string rule)

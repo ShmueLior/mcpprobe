@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format is based on
 
 - GitHub Action (`uses: ShmueLior/mcpprobe@v0.3.0-preview`) and an Azure Pipelines step template that install a pinned `McpProbe.Cli` and run `diff` and `lint`. Reports go to the job summary.
 - `mcpprobe --transport auto|streamable-http|sse` pins the HTTP transport when using `--http`. The default (`auto`) is unchanged: try Streamable HTTP, then fall back to legacy SSE.
+- `LintOptions.Strict` and `mcpprobe lint --strict`: schema-portability rules MCPP009-MCPP012 (bare boolean schemas, type unions, untyped schemas and remote `$ref`s), ported from MCP Inspector. Off by default. These findings fail the report only when their effective severity is Error. MCPP008 is reserved for a community issue and is not included.
 
 ## [0.2.0-preview] - 2026-11-27
 

@@ -136,12 +136,17 @@ internal static class CliApp
         {
             Description = "Also check nested object properties and array items, not just top-level parameters.",
         };
-        var command = new Command("lint", "Lint tool names, descriptions and parameters. Exits 1 on findings at or above --fail-on.");
+        var strict = new Option<bool>("--strict")
+        {
+            Description = "Also run schema-portability rules MCPP009-MCPP012. Those findings fail the command only when their severity is error.",
+        };
+        var command = new Command("lint", "Lint tool names, descriptions and parameters. Exits 1 on findings at or above --fail-on, or on a portability error when --strict is set.");
         server.AddTo(command);
         command.Options.Add(failOn);
         command.Options.Add(minLength);
         command.Options.Add(rules);
         command.Options.Add(nested);
+        command.Options.Add(strict);
         command.SetAction((parse, ct) => RunGuardedAsync(stderr, async () =>
         {
             var options = new LintOptions
@@ -149,6 +154,7 @@ internal static class CliApp
                 FailOn = ParseSeverity(parse.GetValue(failOn)!),
                 MinToolDescriptionLength = parse.GetValue(minLength),
                 CheckNestedParameters = parse.GetValue(nested),
+                Strict = parse.GetValue(strict),
             };
 
             foreach (var rule in parse.GetValue(rules) ?? [])
