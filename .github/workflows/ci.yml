@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution McpProbe.slnx -c Release --no-build
+
+      - name: Pack
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet pack -c Release --no-build -o artifacts
+
+      - name: Smoke test the CLI against the sample server
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          dotnet src/McpProbe.Cli/bin/Release/net10.0/McpProbe.Cli.dll diff \
+            --stdio "dotnet samples/WeatherServer/bin/Release/net10.0/WeatherServer.dll" \
+            --baseline samples/WeatherServer.Tests/mcp-tools.json
+          dotnet src/McpProbe.Cli/bin/Release/net10.0/McpProbe.Cli.dll lint \
+            --stdio "dotnet samples/WeatherServer/bin/Release/net10.0/WeatherServer.dll"
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: packages
+          path: artifacts/
