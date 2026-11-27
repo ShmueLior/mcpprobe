@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Release workflow that publishes packages to nuget.org with Trusted Publishing.
+
 ## [0.1.0-preview] - 2026-11-27
 
 ### Added
