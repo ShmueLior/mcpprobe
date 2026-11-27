@@ -85,7 +85,7 @@ parameters:
 steps:
 - ${{ if parameters.checkoutRepository }}:
   - checkout: ${{ parameters.repositoryAlias }}
-    path: ../mcpprobe-src
+    path: mcpprobe-src
     displayName: Checkout McpProbe (for action/run.sh)
 
 - bash: |

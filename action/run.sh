@@ -57,6 +57,23 @@ is_true() {
   esac
 }
 
+# Convert paths for Git Bash on Windows. No-op when cygpath is not available.
+to_unix_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -u "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+to_windows_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
 # Read the stamped default from action.yml at the repository root.
 default_version_from_action_yml() {
   awk '
@@ -98,7 +115,7 @@ append_summary() {
   fi
   if [[ -n "${TF_BUILD:-}" ]]; then
     if [[ -z "${ado_summary_file:-}" ]]; then
-      ado_summary_file="${RUNNER_TEMP:-${AGENT_TEMPDIRECTORY:-${TMPDIR:-/tmp}}}/mcpprobe-summary-$$.md"
+      ado_summary_file="$(to_unix_path "${RUNNER_TEMP:-${AGENT_TEMPDIRECTORY:-${TMPDIR:-/tmp}}}")/mcpprobe-summary-$$.md"
     fi
     cat "$tmp" >> "$ado_summary_file" || true
   fi
@@ -150,32 +167,41 @@ if ! command -v dotnet >/dev/null 2>&1; then
   die "dotnet was not found on PATH. Run actions/setup-dotnet (or the Azure Pipelines UseDotNet task) first, with a .NET 8 or .NET 10 SDK."
 fi
 
-temp_root="${RUNNER_TEMP:-${AGENT_TEMPDIRECTORY:-${TMPDIR:-/tmp}}}"
+temp_root=$(to_unix_path "${RUNNER_TEMP:-${AGENT_TEMPDIRECTORY:-${TMPDIR:-/tmp}}}")
 tool_path="$temp_root/mcpprobe-cli-$$"
 mkdir -p "$tool_path"
 
 # An exact --version is enough for preview packages. --prerelease cannot be
 # combined with --version on current SDKs.
-install_cmd=(dotnet tool install McpProbe.Cli --tool-path "$tool_path" --version "$version")
+# --tool-path is passed to native dotnet, so use a Windows path on Git Bash.
+install_cmd=(dotnet tool install McpProbe.Cli --tool-path "$(to_windows_path "$tool_path")" --version "$version")
 if [[ -n "${MCPPROBE_SOURCE:-}" ]]; then
   source_arg="$MCPPROBE_SOURCE"
-  if [[ "$source_arg" != *://* && -d "$source_arg" ]]; then
-    source_arg=$(cd "$source_arg" && pwd)
-  elif [[ "$source_arg" != *://* && -f "$source_arg" ]]; then
-    # dotnet --source expects a folder of packages or a feed URL, not a nupkg path.
-    source_arg=$(cd "$(dirname "$source_arg")" && pwd)
-  elif [[ "$source_arg" != *://* ]]; then
-    die "NuGet source not found: $MCPPROBE_SOURCE"
+  if [[ "$source_arg" == *://* ]]; then
+    # Exclusive --source so a just-packed nupkg is not shadowed by nuget.org.
+    install_cmd+=(--source "$source_arg")
+  else
+    # Resolve after cygpath -u so a Git Bash path like D:\a\artifacts is testable.
+    source_arg=$(to_unix_path "$source_arg")
+    if [[ -d "$source_arg" ]]; then
+      source_arg=$(cd "$source_arg" && pwd)
+    elif [[ -f "$source_arg" ]]; then
+      # dotnet --source expects a folder of packages or a feed URL, not a nupkg path.
+      source_arg=$(cd "$(dirname "$source_arg")" && pwd)
+    else
+      die "NuGet source not found: $MCPPROBE_SOURCE"
+    fi
+    install_cmd+=(--source "$(to_windows_path "$source_arg")")
   fi
-  # Exclusive --source so a just-packed nupkg is not shadowed by nuget.org.
-  install_cmd+=(--source "$source_arg")
 fi
 
 printf 'Installing McpProbe.Cli %s\n' "$version"
 if ! "${install_cmd[@]}"; then
   die "dotnet tool install McpProbe.Cli $version failed."
 fi
-export PATH="$tool_path:$PATH"
+# PATH is colon-separated; a drive-letter path such as D:\a\_temp would split.
+path_prefix=$(to_unix_path "$tool_path")
+export PATH="$path_prefix:$PATH"
 if ! command -v mcpprobe >/dev/null 2>&1; then
   die "mcpprobe was not found on PATH after installing McpProbe.Cli $version."
 fi
