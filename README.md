@@ -1,7 +1,7 @@
 # McpProbe
 
 [![CI](https://github.com/ShmueLior/mcpprobe/actions/workflows/ci.yml/badge.svg)](https://github.com/ShmueLior/mcpprobe/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/badge/nuget-not%20published-lightgrey)](#)
+[![NuGet](https://img.shields.io/nuget/vpre/McpProbe.svg)](https://www.nuget.org/packages/McpProbe)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Test kit for MCP servers built with the [MCP C# SDK](https://github.com/modelcontextprotocol/csharp-sdk).
@@ -14,7 +14,7 @@ Test kit for MCP servers built with the [MCP C# SDK](https://github.com/modelcon
 
 Works with any test framework: failures are plain `McpProbeAssertionException`s. Targets .NET 8 and .NET 10, on ModelContextProtocol 2.4.0.
 
-> Status: 0.1.0-preview, not published to NuGet yet. The API may change before 1.0.
+> Status: 0.1.0-preview on NuGet. The API may change before 1.0.
 
 ## Quickstart
 
