@@ -227,7 +227,7 @@ Tools are sorted by name and JSON keys are sorted, so diffs stay small. Comparis
 
 - Only local `$ref`s are followed. Remote refs, `$anchor`/`$id` refs and `$dynamicRef` are compared as plain keywords, and so is `$defs` when such a ref is present.
 - `allOf`, `anyOf` and `oneOf` aren't walked; changes inside them are reported as unclassified keyword changes.
-- Two different `pattern`s can't be compared, so any change to one counts as breaking. `format`, `uniqueItems`, `const` and `additionalProperties` aren't classified yet.
+- Two different `pattern`s or `format`s can't be compared, so any change to one counts as breaking.
 - The test suite in this repo uses xUnit v3. The quickstart was also run once by hand with NUnit 4, MSTest 4 and TUnit 1.87 against the packed library; those checks aren't part of CI yet.
 
 ## Contributing

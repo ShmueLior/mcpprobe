@@ -14,7 +14,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
-- Changes to `format`, `uniqueItems`, `const` or `additionalProperties` that make an input tighter or an output looser (for example a new input `additionalProperties: false`, or an output that drops it) now fail the snapshot check. In 0.2 they passed as unclassified "review by hand" changes. Snapshot files don't change.
+- Changes to `format`, `uniqueItems`, `const` or `additionalProperties` that make an input tighter or an output looser (for example a new input `additionalProperties: false`, or an output that drops it) now fail the snapshot check. A changed `format` or `const` value fails on both sides. The `additionalProperties` rule also covers `unevaluatedProperties`, `additionalItems` and `unevaluatedItems`. In 0.2 these passed as unclassified "review by hand" changes. Snapshot files don't change.
 
 ## [0.2.0-preview] - 2026-11-27
 
