@@ -103,7 +103,7 @@ report.ThrowIfFailed(); // fails on warnings and errors by default
 | MCPP006 | warning | All parameter names use the same style. |
 | MCPP007 | info | Parameter names aren't vague (`data`, `value`, `input`, ...). |
 
-Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, and the threshold with `LintOptions.FailOn`. MCPP003, MCPP006 and MCPP007 also check nested object properties and array items (reported as `home.zip` or `stops[].city`), following local `$ref`s; a schema used in several places is checked once.
+Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, and the threshold with `LintOptions.FailOn`. By default MCPP003, MCPP006 and MCPP007 check top-level parameters. Set `LintOptions.CheckNestedParameters = true` (CLI: `mcpprobe lint --nested`) to also check nested object properties and array items (reported as `home.zip` or `stops[].city`), following local `$ref`s; a schema used in several places is checked once.
 
 ## CLI in CI
 

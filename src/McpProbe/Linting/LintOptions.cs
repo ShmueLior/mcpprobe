@@ -24,6 +24,13 @@ public sealed class LintOptions
     /// </summary>
     public LintSeverity FailOn { get; set; } = LintSeverity.Warning;
 
+    /// <summary>
+    /// Gets or sets whether MCPP003, MCPP006 and MCPP007 also check nested object properties and array items
+    /// (reported as <c>address.zip</c> or <c>stops[].city</c>), following local <c>$ref</c>s. Defaults to <see langword="false"/>:
+    /// only top-level parameters are checked.
+    /// </summary>
+    public bool CheckNestedParameters { get; set; }
+
     internal LintSeverity SeverityOf(LintRule rule) =>
         Severities.TryGetValue(rule.Id, out var severity) ? severity : rule.DefaultSeverity;
 }

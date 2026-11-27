@@ -64,6 +64,8 @@ McpProbe.Linting.LintFinding.Severity.init -> void
 McpProbe.Linting.LintFinding.ToolName.get -> string!
 McpProbe.Linting.LintFinding.ToolName.init -> void
 McpProbe.Linting.LintOptions
+McpProbe.Linting.LintOptions.CheckNestedParameters.get -> bool
+McpProbe.Linting.LintOptions.CheckNestedParameters.set -> void
 McpProbe.Linting.LintOptions.FailOn.get -> McpProbe.Linting.LintSeverity
 McpProbe.Linting.LintOptions.FailOn.set -> void
 McpProbe.Linting.LintOptions.LintOptions() -> void

@@ -3,13 +3,26 @@ using static McpProbe.Tests.TestSupport.SchemaTools;
 
 namespace McpProbe.Tests;
 
-/// <summary>Parameter rules also run on nested object properties and array items.</summary>
+/// <summary>With <see cref="LintOptions.CheckNestedParameters"/>, parameter rules also run on nested object properties and array items.</summary>
 public sealed class ToolLinterNestedTests
 {
     private const string GoodDescription = "Does a clearly described, useful thing.";
 
     private static IReadOnlyList<LintFinding> Lint(string inputSchema, LintOptions? options = null) =>
-        ToolLinter.Lint([Tool("t", inputSchema, GoodDescription)], options).Findings;
+        ToolLinter.Lint([Tool("t", inputSchema, GoodDescription)], options ?? new LintOptions { CheckNestedParameters = true }).Findings;
+
+    [Fact]
+    public void ByDefault_OnlyTopLevelParametersAreChecked()
+    {
+        var schema = """{"type":"object","properties":{"home":{"$ref":"#/$defs/a"},"stops":{"type":"array","description":"Stops.","items":{"type":"object","properties":{"data":{"type":"string"}}}}},"$defs":{"a":{"type":"object","description":"Address.","properties":{"zip":{"type":"string"}}}}}""";
+
+        // Same as 0.1: 'home' has no description of its own (the def's doesn't count), nothing nested is reported.
+        var finding = Assert.Single(Lint(schema, new LintOptions()));
+        Assert.Equal(("MCPP003", "home"), (finding.RuleId, finding.ParameterName));
+        Assert.False(new LintOptions().CheckNestedParameters);
+
+        Assert.Equal(["home.zip", "stops[].data", "stops[].data"], Lint(schema).Select(f => f.ParameterName!).Order(StringComparer.Ordinal));
+    }
 
     [Fact]
     public void NestedPropertiesAndArrayItems_AreChecked()
@@ -90,7 +103,7 @@ public sealed class ToolLinterNestedTests
     [Fact]
     public void RulesTurnedOff_DoNotReportNestedFindings()
     {
-        var options = new LintOptions();
+        var options = new LintOptions { CheckNestedParameters = true };
         options.Severities[LintRules.ParameterMissingDescription.Id] = LintSeverity.None;
 
         Assert.Empty(Lint("""{"type":"object","properties":{"home":{"type":"object","properties":{"zip":{"type":"string"}}}}}""", options));

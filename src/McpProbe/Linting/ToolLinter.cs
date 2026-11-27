@@ -11,8 +11,8 @@ namespace McpProbe.Linting;
 /// Checks tool names, descriptions and parameters for problems that make tools harder for models to use.
 /// </summary>
 /// <remarks>
-/// Parameter rules also check nested object properties and array items, reported as <c>address.zip</c> or <c>stops[].city</c>.
-/// Local <c>$ref</c>s are followed.
+/// Parameter rules check top-level parameters. With <see cref="LintOptions.CheckNestedParameters"/> they also check nested
+/// object properties and array items, reported as <c>address.zip</c> or <c>stops[].city</c>, following local <c>$ref</c>s.
 /// </remarks>
 public static class ToolLinter
 {
@@ -85,9 +85,11 @@ public static class ToolLinter
 
     private static void LintProperties(Walk walk, JsonNode? schema, string? prefix)
     {
+        var nested = walk.Options.CheckNestedParameters;
+
         // Follow local refs. Each schema is linted once, at the first path that reaches it, so a type used
         // twice or a recursive type doesn't repeat its findings.
-        if (JsonSchemaReader.GetString(schema, "$ref") is { } reference && JsonSchemaReader.TryFindTarget(reference, walk.Root, out var target))
+        if (nested && JsonSchemaReader.GetString(schema, "$ref") is { } reference && JsonSchemaReader.TryFindTarget(reference, walk.Root, out var target))
         {
             schema = target;
         }
@@ -98,7 +100,7 @@ public static class ToolLinter
         }
 
         var (tool, options, findings) = (walk.Tool, walk.Options, walk.Findings);
-        if (JsonSchemaReader.Get(schema, "items") is JsonObject items)
+        if (nested && JsonSchemaReader.Get(schema, "items") is JsonObject items)
         {
             LintProperties(walk, items, prefix + "[]");
         }
@@ -116,7 +118,7 @@ public static class ToolLinter
             walk.ParameterNames.Add((tool, path, name));
 
             // A description next to a $ref counts, and so does the referenced schema's own.
-            var described = JsonSchemaReader.TryResolveRef(property, walk.Root, out var resolved, out _) ? resolved : property;
+            var described = nested && JsonSchemaReader.TryResolveRef(property, walk.Root, out var resolved, out _) ? resolved : property;
             if (string.IsNullOrWhiteSpace(JsonSchemaReader.GetString(described, "description")))
             {
                 Add(findings, options, LintRules.ParameterMissingDescription, tool, path,
@@ -129,7 +131,10 @@ public static class ToolLinter
                     $"{noun} name '{path}' is vague. Use a name that says what the value is (for example 'city' instead of 'value').");
             }
 
-            LintProperties(walk, property, path);
+            if (nested)
+            {
+                LintProperties(walk, property, path);
+            }
         }
     }
 
