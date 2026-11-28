@@ -82,6 +82,7 @@ McpProbe.Linting.LintReport.FailOn.get -> McpProbe.Linting.LintSeverity
 McpProbe.Linting.LintReport.Failed.get -> bool
 McpProbe.Linting.LintReport.Findings.get -> System.Collections.Generic.IReadOnlyList<McpProbe.Linting.LintFinding!>!
 McpProbe.Linting.LintReport.ThrowIfFailed() -> void
+McpProbe.Linting.LintReport.ToHtml() -> string!
 McpProbe.Linting.LintReport.ToReport() -> string!
 McpProbe.Linting.LintRule
 McpProbe.Linting.LintRule.<Clone>$() -> McpProbe.Linting.LintRule!
@@ -207,6 +208,7 @@ McpProbe.Snapshots.ToolSurfaceDiff.Changes.get -> System.Collections.Generic.IRe
 McpProbe.Snapshots.ToolSurfaceDiff.HasBreakingChanges.get -> bool
 McpProbe.Snapshots.ToolSurfaceDiff.HasChanges.get -> bool
 McpProbe.Snapshots.ToolSurfaceDiff.NonBreakingChanges.get -> System.Collections.Generic.IEnumerable<McpProbe.Snapshots.ToolSurfaceChange!>!
+McpProbe.Snapshots.ToolSurfaceDiff.ToHtml() -> string!
 McpProbe.Snapshots.ToolSurfaceDiff.ToReport() -> string!
 const McpProbe.Snapshots.SnapshotOptions.UpdateEnvironmentVariable = "MCPPROBE_UPDATE_SNAPSHOTS" -> string!
 const McpProbe.Snapshots.ToolSnapshot.DefaultFileName = "mcp-tools.json" -> string!

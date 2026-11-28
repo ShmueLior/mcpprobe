@@ -70,6 +70,34 @@ internal static class CliApp
         return command;
     }
 
+    private static Option<string?> BuildReportOption() => new("--report")
+    {
+        Description = "Also write a self-contained HTML report to this file. stdout and the exit code are unchanged.",
+    };
+
+    /// <summary>A blank <c>--report</c> is a usage error; checked before connecting so nothing is written.</summary>
+    private static string? ReportPath(ParseResult parse, Option<string?> report)
+    {
+        var value = parse.GetValue(report);
+        return value is null ? null : string.IsNullOrWhiteSpace(value) ? throw new ArgumentException("--report needs a file path.") : Path.GetFullPath(value);
+    }
+
+    /// <summary>Writes through a sibling temp file so a failure never leaves a partial report.</summary>
+    private static async Task WriteReportAsync(string path, string html, CancellationToken ct)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var temp = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await File.WriteAllTextAsync(temp, html, ct).ConfigureAwait(false);
+            File.Move(temp, path, overwrite: true);
+        }
+        finally
+        {
+            File.Delete(temp);
+        }
+    }
+
     private static Command BuildDiffCommand(TextWriter stdout, TextWriter stderr)
     {
         var server = new ServerOptions(allowFile: true);
@@ -83,12 +111,16 @@ internal static class CliApp
             Description = "Also fail (exit 1) on non-breaking changes, so the snapshot is always kept up to date.",
         };
 
+        var report = BuildReportOption();
+
         var command = new Command("diff", "Compare a server's tool surface with a snapshot. Exits 1 on breaking changes.");
         server.AddTo(command);
         command.Options.Add(baseline);
         command.Options.Add(failOnNonBreaking);
+        command.Options.Add(report);
         command.SetAction((parse, ct) => RunGuardedAsync(stderr, async () =>
         {
+            var reportPath = ReportPath(parse, report);
             var baselinePath = Path.GetFullPath(parse.GetValue(baseline)!);
             if (!File.Exists(baselinePath))
             {
@@ -100,6 +132,10 @@ internal static class CliApp
             var current = await server.CaptureAsync(parse, stderr, ct).ConfigureAwait(false);
             var diff = ToolSurfaceComparer.Compare(expected, current);
             await stdout.WriteLineAsync(diff.ToReport()).ConfigureAwait(false);
+            if (reportPath is not null)
+            {
+                await WriteReportAsync(reportPath, diff.ToHtml(), ct).ConfigureAwait(false);
+            }
 
             if (diff.HasBreakingChanges || (diff.HasChanges && parse.GetValue(failOnNonBreaking)))
             {
@@ -140,6 +176,7 @@ internal static class CliApp
         {
             Description = "Also run schema-portability rules MCPP009-MCPP012. Those findings fail the command only when their severity is error.",
         };
+        var report = BuildReportOption();
         var command = new Command("lint", "Lint tool names, descriptions and parameters. Exits 1 on findings at or above --fail-on, or on a portability error when --strict is set.");
         server.AddTo(command);
         command.Options.Add(failOn);
@@ -147,8 +184,10 @@ internal static class CliApp
         command.Options.Add(rules);
         command.Options.Add(nested);
         command.Options.Add(strict);
+        command.Options.Add(report);
         command.SetAction((parse, ct) => RunGuardedAsync(stderr, async () =>
         {
+            var reportPath = ReportPath(parse, report);
             var options = new LintOptions
             {
                 FailOn = ParseSeverity(parse.GetValue(failOn)!),
@@ -170,9 +209,14 @@ internal static class CliApp
             }
 
             var surface = await server.CaptureAsync(parse, stderr, ct).ConfigureAwait(false);
-            var report = ToolLinter.Lint(surface, options);
-            await stdout.WriteLineAsync(report.ToReport()).ConfigureAwait(false);
-            return report.Failed ? ExitCodes.CheckFailed : ExitCodes.Success;
+            var lint = ToolLinter.Lint(surface, options);
+            await stdout.WriteLineAsync(lint.ToReport()).ConfigureAwait(false);
+            if (reportPath is not null)
+            {
+                await WriteReportAsync(reportPath, lint.ToHtml(), ct).ConfigureAwait(false);
+            }
+
+            return lint.Failed ? ExitCodes.CheckFailed : ExitCodes.Success;
         }));
         return command;
     }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using McpProbe.Internal;
 
 namespace McpProbe.Linting;
 
@@ -45,14 +46,38 @@ public sealed class LintReport
         }
 
         var sb = new StringBuilder();
-        sb.Append(CultureInfo.InvariantCulture,
-            $"{Findings.Count} lint finding(s): {Count(LintSeverity.Error)} error, {Count(LintSeverity.Warning)} warning, {Count(LintSeverity.Info)} info.");
+        sb.Append(Summary());
         foreach (var finding in Findings)
         {
             sb.Append('\n').Append("  ").Append(finding);
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Formats the findings as a complete, self-contained HTML document: inline CSS, no scripts and no external assets.
+    /// Server-supplied text is already sanitized and HTML-encoded, so the result is safe to write to a file.
+    /// </summary>
+    /// <returns>The HTML document.</returns>
+    public string ToHtml()
+    {
+        var rows = Findings.Select(f => (RowClass: LintFinding.SeverityLabel(f.Severity), Cells: new[]
+        {
+            LintFinding.SeverityLabel(f.Severity),
+            f.RuleId,
+            Printable.Text(f.ToolName, 100),
+            f.ParameterName is null ? string.Empty : Printable.Text(f.ParameterName, 100),
+            Printable.Text(f.Message, 500),
+            Fails(f) ? "yes" : "no",
+        }));
+        return HtmlReport.Page(
+            "McpProbe lint report",
+            Failed ? "fail" : "pass",
+            Failed ? "Failed" : "Passed",
+            Findings.Count == 0 ? "No lint findings." : $"{Summary()} Fails on: {LintFinding.SeverityLabel(FailOn)}.",
+            ["Severity", "Rule", "Tool", "Path", "Message", "Fails the run"],
+            rows);
     }
 
     /// <summary>Throws when <see cref="Failed"/> is <see langword="true"/>.</summary>
@@ -68,6 +93,9 @@ public sealed class LintReport
 
     /// <inheritdoc />
     public override string ToString() => ToReport();
+
+    private string Summary() => string.Create(CultureInfo.InvariantCulture,
+        $"{Findings.Count} lint finding(s): {Count(LintSeverity.Error)} error, {Count(LintSeverity.Warning)} warning, {Count(LintSeverity.Info)} info.");
 
     private int Count(LintSeverity severity) => Findings.Count(f => f.Severity == severity);
 }

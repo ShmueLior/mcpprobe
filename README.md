@@ -140,6 +140,27 @@ mcpprobe lint     --http http://localhost:5000/sse --transport sse --header "Aut
 
 Exit codes: `0` passed, `1` check failed (breaking change or lint findings), `2` usage or connection error. The server's stderr is printed when it fails to start. `diff` and `lint` also take `--from-file <snapshot>` to check a file without starting a server. Run `mcpprobe <command> --help` for every option.
 
+### HTML report
+
+`lint` and `diff` take `--report <file>` to also write a self-contained HTML page (inline CSS, no scripts): a banner, a one-line summary and, when there are findings or changes, a table. It is not in 0.3.0-preview; it comes with the next release. The text report on stdout and the exit code do not change, the file is written whether the check passed or failed (exit `0` or `1`), and nothing is written on a usage or connection error (exit `2`). In code, use `LintReport.ToHtml()` and `ToolSurfaceDiff.ToHtml()`.
+
+```bash
+mcpprobe lint --stdio "dotnet run --project src/MyServer" --report mcp-lint.html
+mcpprobe diff --stdio "dotnet run --project src/MyServer" --baseline mcp-tools.json --report mcp-diff.html
+```
+
+To keep the files from a CI run, upload them as an artifact. `if: always()` keeps the upload when the check fails:
+
+```yaml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mcpprobe-reports
+          path: |
+            mcp-lint.html
+            mcp-diff.html
+```
+
 ### GitHub Actions
 
 The `McpProbe tool surface check` Action installs the same `McpProbe.Cli` version as the tag you pin, then runs `diff` and `lint`. It needs `actions/setup-dotnet` (a .NET 8 or .NET 10 SDK) and your server already built. Reports go to the job summary. Pin an exact release tag that includes the Action (0.3.0-preview or later):
