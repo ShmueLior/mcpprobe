@@ -160,6 +160,24 @@ public sealed class McpProbeHost : IAsyncDisposable
         ToolSnapshot.VerifyAsync(Client, snapshotPath, options, cancellationToken, callerFilePath);
 
     /// <summary>
+    /// Checks the server's tool surface against a snapshot file, using the default file name.
+    /// See <see cref="ToolSnapshot"/> for the workflow.
+    /// </summary>
+    /// <param name="snapshotOptions">Snapshot options.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="callerFilePath">Filled in by the compiler.</param>
+    /// <returns>The diff between the snapshot and the current surface.</returns>
+    /// <exception cref="McpProbeSnapshotException">The check failed.</exception>
+    public Task<ToolSurfaceDiff> VerifyToolSnapshotAsync(
+        SnapshotOptions snapshotOptions,
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string callerFilePath = "")
+    {
+        ArgumentNullException.ThrowIfNull(snapshotOptions);
+        return VerifyToolSnapshotAsync(ToolSnapshot.DefaultFileName, snapshotOptions, cancellationToken, callerFilePath);
+    }
+
+    /// <summary>
     /// Lists the server's tools and lints them.
     /// </summary>
     /// <param name="options">Lint options.</param>

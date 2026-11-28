@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using McpProbe.Snapshots;
 using McpProbe.Tests.TestSupport;
+using ModelContextProtocol.Client;
 using WeatherServer;
 using static McpProbe.Tests.TestSupport.SchemaTools;
 
@@ -200,6 +202,221 @@ public sealed class ToolSnapshotTests : IDisposable
         Assert.False(diff.HasChanges);
         Assert.Contains("\"get_forecast\"", File.ReadAllText(_dir.File("mcp-tools.json")), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task OptionsFirst_HostVerify_UsesDefaultFileNameAndHonorsOptions()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+            probe.VerifyToolSnapshotAsync(Local(), TestContext.Current.CancellationToken));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.True(File.Exists(_dir.File(ToolSnapshot.DefaultFileName)));
+        Assert.Contains("\"get_forecast\"", File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OptionsFirst_HostVerify_ResolvesPathFromTestFileNotHostSource()
+    {
+        var expected = ToolSnapshot.ResolvePath(ToolSnapshot.DefaultFileName, options: null, callerFilePath: ThisFile());
+        var received = ToolSnapshot.GetReceivedPath(expected);
+        try
+        {
+            await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+            var options = new SnapshotOptions { Update = false, CreateMissing = false };
+
+            var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+                probe.VerifyToolSnapshotAsync(options, TestContext.Current.CancellationToken));
+
+            Assert.Equal(expected, error.SnapshotPath);
+            Assert.DoesNotContain("McpProbeHost.cs", error.SnapshotPath, StringComparison.Ordinal);
+            Assert.Contains(Path.Combine("tests", "McpProbe.Tests"), error.SnapshotPath, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(expected))
+            {
+                File.Delete(expected);
+            }
+
+            if (File.Exists(received))
+            {
+                File.Delete(received);
+            }
+        }
+    }
+
+    [Fact]
+    public void OptionsFirst_Verify_UsesDefaultFileNameAndHonorsOptions()
+    {
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, Local()));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.Equal(Baseline.ToJson(), File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)));
+    }
+
+    [Fact]
+    public async Task OptionsFirst_VerifyAsync_UsesDefaultFileNameAndHonorsOptions()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+            ToolSnapshot.VerifyAsync(probe.Client, Local(), TestContext.Current.CancellationToken));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.True(File.Exists(_dir.File(ToolSnapshot.DefaultFileName)));
+    }
+
+    [Fact]
+    public void OptionsFirst_Verify_NullOptions_Throws()
+    {
+        var ex = Assert.Throws<ArgumentNullException>(() => ToolSnapshot.Verify(Baseline, (SnapshotOptions)null!));
+        Assert.Equal("snapshotOptions", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task OptionsFirst_VerifyAsync_NullOptions_Throws()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            ToolSnapshot.VerifyAsync(probe.Client, (SnapshotOptions)null!, TestContext.Current.CancellationToken));
+        Assert.Equal("snapshotOptions", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task OptionsFirst_HostVerify_NullOptions_Throws()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            probe.VerifyToolSnapshotAsync((SnapshotOptions)null!, TestContext.Current.CancellationToken));
+        Assert.Equal("snapshotOptions", ex.ParamName);
+    }
+
+    [Fact]
+    public void NamedOptions_Verify_UsesDefaultFileNameAndHonorsOptions()
+    {
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, options: Local()));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.Equal(Baseline.ToJson(), File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)));
+    }
+
+    [Fact]
+    public async Task NamedOptions_VerifyAsync_UsesDefaultFileNameAndHonorsOptions()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+            ToolSnapshot.VerifyAsync(probe.Client, options: Local(), cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.True(File.Exists(_dir.File(ToolSnapshot.DefaultFileName)));
+    }
+
+    [Fact]
+    public async Task NamedOptions_HostVerify_UsesDefaultFileNameAndHonorsOptions()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+            probe.VerifyToolSnapshotAsync(options: Local(), cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.True(File.Exists(_dir.File(ToolSnapshot.DefaultFileName)));
+        Assert.Contains("\"get_forecast\"", File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NamedOptions_HostVerify_ResolvesPathFromTestFile()
+    {
+        var expected = ToolSnapshot.ResolvePath(ToolSnapshot.DefaultFileName, options: null, callerFilePath: ThisFile());
+        var received = ToolSnapshot.GetReceivedPath(expected);
+        try
+        {
+            await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+            var options = new SnapshotOptions { Update = false, CreateMissing = false };
+
+            var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+                probe.VerifyToolSnapshotAsync(options: options, cancellationToken: TestContext.Current.CancellationToken));
+
+            Assert.Equal(expected, error.SnapshotPath);
+            Assert.DoesNotContain("McpProbeHost.cs", error.SnapshotPath, StringComparison.Ordinal);
+            Assert.Contains(Path.Combine("tests", "McpProbe.Tests"), error.SnapshotPath, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(expected))
+            {
+                File.Delete(expected);
+            }
+
+            if (File.Exists(received))
+            {
+                File.Delete(received);
+            }
+        }
+    }
+
+    [Fact]
+    public void OverloadResolution_CallShapes_Compile()
+    {
+        // The body of CompileOverloadResolutionMatrix is the compile matrix: if any shape is
+        // CS0121 or binds to the wrong parameter type, this test project does not build.
+        Assert.NotNull((Action<McpProbeHost, McpClient, ToolSurface, SnapshotOptions, CancellationToken>)CompileOverloadResolutionMatrix);
+    }
+
+    private static void CompileOverloadResolutionMatrix(
+        McpProbeHost probe,
+        McpClient client,
+        ToolSurface surface,
+        SnapshotOptions snapshotOptions,
+        CancellationToken cancellationToken)
+    {
+        // Named options: only, the 0.2/0.3 workaround. Must bind to the path-first overloads.
+        _ = probe.VerifyToolSnapshotAsync(options: snapshotOptions);
+        _ = probe.VerifyToolSnapshotAsync(options: snapshotOptions, cancellationToken: cancellationToken);
+        _ = ToolSnapshot.Verify(surface, options: snapshotOptions);
+        _ = ToolSnapshot.VerifyAsync(client, options: snapshotOptions);
+        _ = ToolSnapshot.VerifyAsync(client, options: snapshotOptions, cancellationToken: cancellationToken);
+
+        // Positional options. Must bind to the options-first overloads.
+        _ = probe.VerifyToolSnapshotAsync(snapshotOptions);
+        _ = probe.VerifyToolSnapshotAsync(snapshotOptions, cancellationToken);
+        _ = ToolSnapshot.Verify(surface, snapshotOptions);
+        _ = ToolSnapshot.VerifyAsync(client, snapshotOptions);
+        _ = ToolSnapshot.VerifyAsync(client, snapshotOptions, cancellationToken);
+
+        // Path only.
+        _ = probe.VerifyToolSnapshotAsync("custom.json");
+        _ = ToolSnapshot.Verify(surface, "custom.json");
+        _ = ToolSnapshot.VerifyAsync(client, "custom.json");
+
+        // No-arg (default path, default options).
+        _ = probe.VerifyToolSnapshotAsync();
+        _ = ToolSnapshot.Verify(surface);
+        _ = ToolSnapshot.VerifyAsync(client);
+
+        // cancellationToken: only, as used by samples/WeatherServer.Tests.
+        _ = probe.VerifyToolSnapshotAsync(cancellationToken: cancellationToken);
+        _ = ToolSnapshot.VerifyAsync(client, cancellationToken: cancellationToken);
+
+        // Path plus options, positional and named.
+        _ = probe.VerifyToolSnapshotAsync("custom.json", snapshotOptions);
+        _ = ToolSnapshot.Verify(surface, "custom.json", snapshotOptions);
+        _ = ToolSnapshot.VerifyAsync(client, "custom.json", snapshotOptions);
+        _ = probe.VerifyToolSnapshotAsync("custom.json", options: snapshotOptions);
+        _ = ToolSnapshot.Verify(surface, snapshotPath: "custom.json", options: snapshotOptions);
+
+        // Explicit name of the new parameter.
+        _ = probe.VerifyToolSnapshotAsync(snapshotOptions: snapshotOptions);
+        _ = ToolSnapshot.Verify(surface, snapshotOptions: snapshotOptions);
+        _ = ToolSnapshot.VerifyAsync(client, snapshotOptions: snapshotOptions);
+    }
+
+    private static string ThisFile([CallerFilePath] string path = "") => path;
 }
 
 [CollectionDefinition(nameof(EnvironmentVariableTests), DisableParallelization = true)]
