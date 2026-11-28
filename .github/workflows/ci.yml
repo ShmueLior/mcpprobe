@@ -65,6 +65,38 @@ jobs:
           stdio: dotnet samples/WeatherServer/bin/Release/net10.0/WeatherServer.dll
           baseline: samples/WeatherServer.Tests/mcp-tools.json
 
+      - name: Check MCP tool surface with report
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
+        uses: ./
+        with:
+          source: artifacts
+          from-file: samples/WeatherServer.Tests/mcp-tools.json
+          baseline: samples/WeatherServer.Tests/mcp-tools.json
+          strict: true
+          report: mcpprobe-reports
+
+      - name: Assert HTML reports were written
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pair in "lint.html:McpProbe lint report" "diff.html:McpProbe diff report"; do
+            file="mcpprobe-reports/${pair%%:*}"
+            needle="${pair##*:}"
+            if [[ ! -f "$file" ]]; then
+              echo "error: expected $file"
+              exit 1
+            fi
+            if ! grep -F -q "$needle" "$file"; then
+              echo "error: $file does not look like a $needle"
+              exit 1
+            fi
+            if grep -F -q '<script' "$file"; then
+              echo "error: $file contains a script tag"
+              exit 1
+            fi
+          done
+
       - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest'
         with:

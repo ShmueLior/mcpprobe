@@ -66,6 +66,15 @@ parameters:
 - name: minDescriptionLength
   type: string
   default: ''
+- name: strict
+  type: boolean
+  default: false
+- name: transport
+  type: string
+  default: ''
+- name: report
+  type: string
+  default: ''
 - name: version
   type: string
   default: ''
@@ -119,5 +128,8 @@ steps:
     MCPPROBE_NESTED: ${{ parameters.nested }}
     MCPPROBE_RULE: ${{ parameters.rule }}
     MCPPROBE_MIN_DESCRIPTION_LENGTH: ${{ parameters.minDescriptionLength }}
+    MCPPROBE_STRICT: ${{ parameters.strict }}
+    MCPPROBE_TRANSPORT: ${{ parameters.transport }}
+    MCPPROBE_REPORT: ${{ parameters.report }}
     MCPPROBE_VERSION: ${{ parameters.version }}
     MCPPROBE_SOURCE: ${{ parameters.source }}

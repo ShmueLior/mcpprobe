@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format is based on
 
 - `LintReport.ToHtml()` and `ToolSurfaceDiff.ToHtml()`: a self-contained HTML page (inline CSS, no scripts) with a banner, a summary and, when there are findings or changes, a table. Server text is sanitized and HTML-encoded.
 - `mcpprobe lint --report <file>` and `mcpprobe diff --report <file>` also write that page. Stdout and exit codes are unchanged. The file is written on exit 0 and 1, not on a usage or connection error (exit 2).
+- GitHub Action and Azure Pipelines template inputs `strict`, `transport`, and `report`. All three are off by default, so existing workflows keep the same CLI invocation. `report` is a directory (`lint.html` and `diff.html`); the job summary is unchanged, and artifact upload is left to the workflow (`actions/upload-artifact` / `PublishPipelineArtifact@1`). `report` requires a CLI that has `--report`; the wrapper fails fast if the installed tool does not.
 
 ## [0.3.0-preview] - 2026-11-28
 
