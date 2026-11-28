@@ -72,6 +72,9 @@ McpProbe.Linting.LintOptions.FailOn.set -> void
 McpProbe.Linting.LintOptions.LintOptions() -> void
 McpProbe.Linting.LintOptions.MinToolDescriptionLength.get -> int
 McpProbe.Linting.LintOptions.MinToolDescriptionLength.set -> void
+McpProbe.Linting.LintOptions.MinToolDescriptionWords.get -> int
+McpProbe.Linting.LintOptions.MinToolDescriptionWords.set -> void
+McpProbe.Linting.LintOptions.PayloadContextTokens.get -> System.Collections.Generic.ISet<string!>!
 McpProbe.Linting.LintOptions.Severities.get -> System.Collections.Generic.IDictionary<string!, McpProbe.Linting.LintSeverity>!
 McpProbe.Linting.LintOptions.Strict.get -> bool
 McpProbe.Linting.LintOptions.Strict.set -> void

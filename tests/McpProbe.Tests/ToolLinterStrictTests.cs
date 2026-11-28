@@ -15,7 +15,7 @@ public sealed class ToolLinterStrictTests
     private const string GoodDescription = "Does a clearly described, useful thing.";
 
     private static readonly string UnportableCity = """
-        {"type":"object","properties":{"city":{"description":"City name.","anyOf":[true,{"type":["null","boolean"]},{},{"$ref":"https://example.com/schema.json"}]}}}
+        {"type":"object","properties":{"city":{"description":"City name.","anyOf":[true,{"type":["boolean","integer"]},{},{"$ref":"https://example.com/schema.json"}]}}}
         """;
 
     private static LintOptions Strict(Action<LintOptions>? configure = null)
@@ -118,24 +118,58 @@ public sealed class ToolLinterStrictTests
     }
 
     [Theory]
-    [InlineData("""["null","boolean"]""", true)]
+    [InlineData("""["string","integer"]""", false)]
     [InlineData("""["string","number","integer"]""", false)]
-    [InlineData("""["string","null"]""", true)]
+    [InlineData("""["string","integer","null"]""", true)]
     [InlineData("""["null","boolean","object","array","number","string","integer"]""", true)]
     public void MCPP010_FlagsLegalTypeUnions(string type, bool nullCaveat)
     {
         var finding = Single(Lint($$"""{"type":{{type}}}"""), "MCPP010");
         Assert.Equal((LintSeverity.Warning, "inputSchema"), (finding.Severity, finding.ParameterName));
-        Assert.Contains("`type` is an array", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("`type` is a union array", finding.Message, StringComparison.Ordinal);
         Assert.Contains("anyOf", finding.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain("optional", finding.Message.Split("anyOf")[0], StringComparison.Ordinal);
-        Assert.Equal(nullCaveat, finding.Message.Contains("nullable: true", StringComparison.Ordinal));
+        Assert.DoesNotContain("nullable: true", finding.Message, StringComparison.Ordinal);
+        Assert.Equal(nullCaveat, finding.Message.Contains("null branch", StringComparison.Ordinal));
+        Assert.InRange(finding.Message.Length, 1, 400);
     }
 
     [Theory]
-    [InlineData("""["string","null"]""", true)]
-    [InlineData("""["null","boolean"]""", true)]
+    [InlineData("string")]
+    [InlineData("number")]
+    [InlineData("integer")]
+    [InlineData("boolean")]
+    [InlineData("object")]
+    [InlineData("array")]
+    public void MCPP010_IsQuietOnNullableUnion_InEitherOrder_OnInputAndOutput(string type)
+    {
+        foreach (var union in new[] { $"[\"{type}\",\"null\"]", $"[\"null\",\"{type}\"]" })
+        {
+            var schema = """{"type":"object","description":"D.","$defs":{"d":{"type":U}},"properties":{"p":{"description":"P.","type":U,"items":{"type":U},"prefixItems":[{"type":U}],"contentSchema":{"type":U}}}}""".Replace("U", union, StringComparison.Ordinal);
+            Assert.DoesNotContain(Lint(schema, outputSchema: schema), f => f.RuleId == "MCPP010");
+        }
+    }
+
+    [Fact]
+    public void MCPP010_NullableUnionStaysQuiet_ButAnotherUnionInTheSameSchemaStillFires()
+    {
+        var schema = """{"type":"object","properties":{"a":{"description":"A.","type":["string","null"]},"b":{"description":"B.","type":["string","integer"]}}}""";
+        var finding = Single(Lint(schema), "MCPP010");
+        Assert.Equal("inputSchema.properties.b", finding.ParameterName);
+    }
+
+    [Fact]
+    public void MCPP010_Error_StillFailsAUnionButNotANullableUnion()
+    {
+        var options = new LintOptions();
+        options.Severities["MCPP010"] = LintSeverity.Error;
+        Assert.True(ToolLinter.Lint(ParseSurface("t", """{"type":["string","integer"]}""", GoodDescription), options).Failed);
+        Assert.False(ToolLinter.Lint(ParseSurface("t", """{"type":["string","null"]}""", GoodDescription), options).Failed);
+    }
+
+    [Theory]
+    [InlineData("""["string","integer"]""", false)]
     [InlineData("""["string","number","integer"]""", false)]
+    [InlineData("""["string","integer","null"]""", true)]
     [InlineData("""["null","boolean","object","array","number","string","integer"]""", true)]
     public void MCPP010_PrintedReportKeepsTheFullMessage(string type, bool nullCaveat)
     {
@@ -148,8 +182,8 @@ public sealed class ToolLinterStrictTests
         Assert.DoesNotContain("...", printed, StringComparison.Ordinal);
         Assert.Contains(finding.Message, printed, StringComparison.Ordinal);
         Assert.Contains(finding.Message, reportText, StringComparison.Ordinal);
-        Assert.Equal(nullCaveat, printed.Contains("nullable: true", StringComparison.Ordinal));
-        Assert.Equal(nullCaveat, reportText.Contains("nullable: true", StringComparison.Ordinal));
+        Assert.Equal(nullCaveat, printed.Contains("null branch", StringComparison.Ordinal));
+        Assert.Equal(nullCaveat, reportText.Contains("null branch", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -229,7 +263,7 @@ public sealed class ToolLinterStrictTests
     [Fact]
     public void Walk_CoversBothSchemas_NestedPaths_AndDefs()
     {
-        var input = """{"type":"object","$defs":{"flag":true},"properties":{"city":{"description":"City.","items":{"type":["string","null"]}}}}""";
+        var input = """{"type":"object","$defs":{"flag":true},"properties":{"city":{"description":"City.","items":{"type":["string","integer"]}}}}""";
         var output = """{"type":"object","properties":{"result":{}}}""";
         var findings = Lint(input, outputSchema: output);
         Assert.Contains(findings, f => f.RuleId == "MCPP009" && f.ParameterName == "inputSchema.$defs.flag");
@@ -238,8 +272,8 @@ public sealed class ToolLinterStrictTests
     }
 
     [Theory]
-    [InlineData("""{"type":"array","items":[true,{"type":["string","null"]}]}""", "inputSchema.items[0]", "MCPP009")]
-    [InlineData("""{"type":"array","items":[true,{"type":["string","null"]}]}""", "inputSchema.items[1]", "MCPP010")]
+    [InlineData("""{"type":"array","items":[true,{"type":["string","integer"]}]}""", "inputSchema.items[0]", "MCPP009")]
+    [InlineData("""{"type":"array","items":[true,{"type":["string","integer"]}]}""", "inputSchema.items[1]", "MCPP010")]
     [InlineData("""{"type":"array","prefixItems":[true,{}]}""", "inputSchema.prefixItems[0]", "MCPP009")]
     [InlineData("""{"type":"array","prefixItems":[true,{}]}""", "inputSchema.prefixItems[1]", "MCPP011")]
     [InlineData("""{"type":"string","contentSchema":true}""", "inputSchema.contentSchema", "MCPP009")]
@@ -283,7 +317,7 @@ public sealed class ToolLinterStrictTests
     [Fact]
     public void FailOnWarning_DoesNotFailPortabilityWarnings_ButStillFailsMCPP002()
     {
-        var union = ParseSurface("warn", """{"type":["string","null"]}""", GoodDescription);
+        var union = ParseSurface("warn", """{"type":["string","integer"]}""", GoodDescription);
         var report = ToolLinter.Lint(union, new LintOptions { Strict = true, FailOn = LintSeverity.Warning });
         Assert.Contains(report.Findings, f => f.RuleId == "MCPP010");
         Assert.False(report.Failed);

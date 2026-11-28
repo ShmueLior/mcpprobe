@@ -102,14 +102,14 @@ strict.ThrowIfFailed();
 | Id | Default | Checks |
 |---|---|---|
 | MCPP001 | error | The tool has a description. |
-| MCPP002 | warning | The description is at least `MinToolDescriptionLength` (20) characters. |
+| MCPP002 | warning | The description is at least `MinToolDescriptionLength` (20) characters, or at least `MinToolDescriptionWords` (4) words. |
 | MCPP003 | warning | Every parameter has a description. |
 | MCPP004 | warning | The tool name is 1-128 characters of `A-Z a-z 0-9 _ - .`. |
 | MCPP005 | warning | All tool names use the same style (snake_case, camelCase, ...). |
 | MCPP006 | warning | All parameter names use the same style. |
-| MCPP007 | info | Parameter names aren't vague (`data`, `value`, `input`, ...). |
+| MCPP007 | info | Parameter names aren't vague (`data`, `value`, `input`, ...). A top-level `value` or `data` is fine on a tool named `create_*`, `set_*`, `publish_*` and similar (`PayloadContextTokens`). |
 | MCPP009 | error | No bare `true`/`false` where a schema object is expected (`--strict`). |
-| MCPP010 | warning | `type` is not a union array (`--strict`). |
+| MCPP010 | warning | `type` is not a union array (`--strict`). `[T, "null"]`, the nullable spelling the C# and Go SDKs emit, is not reported. |
 | MCPP011 | warning | Every schema has a constraining keyword (`--strict`). |
 | MCPP012 | warning | `$ref` does not point outside the document (`--strict`). |
 | MCPP013 | warning | Hints don't contradict: not read-only and destructive at once, and a `delete_*`-style name isn't marked `destructiveHint: false` or `readOnlyHint: true`. |
@@ -119,7 +119,7 @@ strict.ThrowIfFailed();
 
 Change severities with `LintOptions.Severities["MCPP007"] = LintSeverity.None`, and the threshold with `LintOptions.FailOn`. By default MCPP003, MCPP006 and MCPP007 check top-level parameters. Set `LintOptions.CheckNestedParameters = true` (CLI: `mcpprobe lint --nested`) to also check nested object properties and array items (reported as `home.zip` or `stops[].city`), following local `$ref`s; a schema used in several places is checked once.
 
-Set `LintOptions.Strict = true` (CLI: `mcpprobe lint --strict`) to also run MCPP009-MCPP012, the schema-portability checks from MCP Inspector, on `inputSchema` and `outputSchema`. Those findings are reported with paths such as `inputSchema.properties.city` (the existing parameter rules still use `city`). They fail the report only when their effective severity is error, so a type-union warning does not trip the default `FailOn = Warning` gate; use `--rule MCPP010=error` if you want that warning to fail. A single portability rule can be turned on without `--strict` by setting its severity, or turned off with `--rule MCPP011=none`. MCPP008 is reserved for a community issue and is not implemented here.
+Set `LintOptions.Strict = true` (CLI: `mcpprobe lint --strict`) to also run MCPP009-MCPP012, the schema-portability checks from MCP Inspector, on `inputSchema` and `outputSchema`. Those findings are reported with paths such as `inputSchema.properties.city` (the existing parameter rules still use `city`). MCPP010 does not report `[T, "null"]` (for example `["integer","null"]`): the C# and Go SDKs write that for every nullable parameter and an author can't change it, so this differs from Inspector's type-union check; use Inspector if you need its exact report. Unions of two or more non-null types, and longer unions with `null`, are still reported. Portability findings fail the report only when their effective severity is error, so a type-union warning does not trip the default `FailOn = Warning` gate; use `--rule MCPP010=error` if you want that warning to fail. A single portability rule can be turned on without `--strict` by setting its severity, or turned off with `--rule MCPP011=none`. MCPP008 is reserved for a community issue and is not implemented here.
 
 MCPP013-MCPP016 run by default and use `FailOn` like MCPP001-MCPP007. They are kept narrow on purpose: MCPP013 only reads explicit hints (an unset `destructiveHint` is fine) and matches whole name segments from `LintOptions.DestructiveNameTokens`; MCPP014 only fires on the phrases in `LintOptions.StructuredOutputCues`; MCPP016 walks `inputSchema` and `outputSchema` with the same paths as the `--strict` rules, and does not ask for a `type` on mixed-type enums (including ones with `null`) or on `anyOf`/`oneOf`/`allOf` branches, which usually take their type from the parent.
 

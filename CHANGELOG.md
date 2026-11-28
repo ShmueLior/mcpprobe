@@ -11,6 +11,17 @@ All notable changes to this project are documented here. The format is based on
 - `mcpprobe lint --report <file>` and `mcpprobe diff --report <file>` also write that page. Stdout and exit codes are unchanged. The file is written on exit 0 and 1, not on a usage or connection error (exit 2).
 - GitHub Action and Azure Pipelines template inputs `strict`, `transport`, and `report`. All three are off by default, so existing workflows keep the same CLI invocation. `report` is a directory (`lint.html` and `diff.html`); the job summary is unchanged, and artifact upload is left to the workflow (`actions/upload-artifact` / `PublishPipelineArtifact@1`). `report` requires a CLI that has `--report`; the wrapper fails fast if the installed tool does not.
 
+### Changed
+
+- `lint --strict`: MCPP010 no longer reports the nullable spelling `[T, "null"]` (for example `["integer","null"]`), which the C# and Go SDKs emit for every nullable parameter. Unions of two or more non-null types, and longer unions that include `null`, are still reported, with a shorter message. This differs from Inspector's type-union check.
+- MCPP002 also needs fewer than `MinToolDescriptionWords` (default 4) words, so a clear description like "Delete a file share" is not flagged for being one character short. Set `LintOptions.MinToolDescriptionWords = 0` for the old character-only check.
+- MCPP007 skips a top-level `value`, `data`, `payload` and similar parameter on tools whose name has a segment like `create`, `set` or `publish`. Configure it with `LintOptions.PayloadContextTokens`.
+- MCPP005 and MCPP006 say what is mixed in a name, for example "mixed ('_' and '-')", instead of just "mixed".
+
+### Fixed
+
+- MCPP005 and MCPP006 no longer report "most names are X" when two styles tie. With no majority they report nothing.
+
 ## [0.3.0-preview] - 2026-11-28
 
 ### Added
