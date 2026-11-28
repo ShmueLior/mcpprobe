@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.3.0-preview] - 2026-11-28
+
 ### Added
 
 - GitHub Action (`uses: ShmueLior/mcpprobe@v0.3.0-preview`) and an Azure Pipelines step template that install a pinned `McpProbe.Cli` and run `diff` and `lint`. Reports go to the job summary.

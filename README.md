@@ -14,7 +14,7 @@ Test kit for MCP servers built with the [MCP C# SDK](https://github.com/modelcon
 
 Works with any test framework: failures are plain `McpProbeAssertionException`s. Targets .NET 8 and .NET 10, on ModelContextProtocol 2.4.0.
 
-> Status: 0.2.0-preview on NuGet. The API may change before 1.0.
+> Status: 0.3.0-preview on NuGet. The API may change before 1.0.
 
 ![mcpprobe CLI: snapshot a server, lint it, then catch a breaking tool-surface change](docs/demo.gif)
 
@@ -128,7 +128,7 @@ MCPP013-MCPP016 run by default and use `FailOn` like MCPP001-MCPP007. They are k
 Write a snapshot once and commit it, then check it in CI:
 
 ```bash
-dotnet tool install --global McpProbe.Cli --version 0.2.0-preview
+dotnet tool install --global McpProbe.Cli --version 0.3.0-preview
 
 mcpprobe snapshot --stdio "dotnet run --project src/MyServer" --out mcp-tools.json
 mcpprobe diff     --stdio "dotnet run --project src/MyServer" --baseline mcp-tools.json
