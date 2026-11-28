@@ -130,15 +130,17 @@ internal sealed class ServerOptions
             ParsePairs(parse.GetValue(_headers), ':', "--header", "Name: value"),
             ParsePairs(parse.GetValue(_env), '=', "--env", "NAME=value").ToDictionary(p => p.Key, p => (string?)p.Value, StringComparer.Ordinal),
             parse.GetValue(_cwd),
-            ParseTransportMode(parse.GetValue(_transport)) ?? HttpTransportMode.AutoDetect);
+            ParseTransportMode(parse.GetValue(_transport)) ?? HttpTransportMode.AutoDetect,
+            TimeSpan.FromSeconds(timeoutSeconds));
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
         var serverStderr = new StderrBuffer();
+        var challenge = new ChallengeCapture();
         try
         {
-            var client = await ServerConnector.ConnectAsync(target, serverStderr, timeout.Token).ConfigureAwait(false);
+            var client = await ServerConnector.ConnectAsync(target, serverStderr, challenge, timeout.Token).ConfigureAwait(false);
             await using (client.ConfigureAwait(false))
             {
                 return await ToolSurface.CaptureAsync(client, timeout.Token).ConfigureAwait(false);
@@ -160,7 +162,15 @@ internal sealed class ServerOptions
 
             if (ex is OperationCanceledException && timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
-                throw new TimeoutException($"The server didn't respond within {timeoutSeconds} seconds.", ex);
+                // No inner exception: its message is the runtime's localized "A task was canceled.".
+                throw new TimeoutException($"The server didn't respond within {timeoutSeconds} seconds.");
+            }
+
+            if (ex is HttpRequestException { StatusCode: not null } http && target.HttpEndpoint is { } endpoint)
+            {
+                // The SDK's message carries the response body. Say what to try instead, with no inner exception to bring the body back.
+                var sentAuthorization = target.Headers.Keys.Any(k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase));
+                throw new HttpRequestException(ConnectError.Describe(http, endpoint, target.TransportMode, sentAuthorization, challenge.Challenge), inner: null, http.StatusCode);
             }
 
             throw;

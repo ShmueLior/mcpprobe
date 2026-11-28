@@ -257,7 +257,8 @@ internal static class CliApp
         var messages = new List<string> { ex.Message };
         for (var inner = ex.InnerException; inner is not null && messages.Count < 4; inner = inner.InnerException)
         {
-            if (!messages.Any(m => m.Contains(inner.Message, StringComparison.Ordinal)))
+            // The runtime's "A task was canceled." (localized) says nothing the message above doesn't.
+            if (inner is not OperationCanceledException && !messages.Any(m => m.Contains(inner.Message, StringComparison.Ordinal)))
             {
                 messages.Add(inner.Message);
             }

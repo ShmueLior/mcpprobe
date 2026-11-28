@@ -26,6 +26,8 @@ All notable changes to this project are documented here. The format is based on
 ### Fixed
 
 - MCPP005 and MCPP006 no longer report "most names are X" when two styles tie. With no majority they report nothing.
+- `--timeout N` now stops after about N seconds for a stdio server that does not exit (the SDK waited 5 more seconds before killing it; the grace period is now 500 ms), and the error no longer ends with the runtime's "A task was canceled.". A stdio server that needs more than 500 ms to exit after its stdin closes is now killed instead of waited for.
+- HTTP connection errors are short and say what to try. A pinned `--transport sse` or `streamable-http` that gets a 400, 404 or 405 says the URL did not answer as that transport and points at the other one. A 401 shows the server's `WWW-Authenticate` challenge and says to pass `--header 'Authorization: Bearer <token>'`, or that the credentials in `--header` were rejected. Other response bodies are shown as one line of at most 200 characters with HTML tags removed, instead of a whole page. Exit codes are unchanged.
 
 ## [0.3.0-preview] - 2026-11-28
 

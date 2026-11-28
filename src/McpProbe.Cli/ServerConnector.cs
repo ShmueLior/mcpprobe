@@ -11,11 +11,18 @@ internal sealed record ServerTarget(
     IReadOnlyDictionary<string, string> Headers,
     IReadOnlyDictionary<string, string?> Environment,
     string? WorkingDirectory,
-    HttpTransportMode TransportMode);
+    HttpTransportMode TransportMode,
+    TimeSpan Timeout);
 
 internal static class ServerConnector
 {
-    public static async Task<McpClient> ConnectAsync(ServerTarget target, StderrBuffer serverStderr, CancellationToken cancellationToken)
+    /// <summary>
+    /// How long a stdio server gets to exit by itself after its stdin is closed, before its process tree is killed.
+    /// The SDK default is 5 seconds, which would add that much to a --timeout.
+    /// </summary>
+    private static readonly TimeSpan s_shutdownTimeout = TimeSpan.FromMilliseconds(500);
+
+    public static async Task<McpClient> ConnectAsync(ServerTarget target, StderrBuffer serverStderr, ChallengeCapture challenge, CancellationToken cancellationToken)
     {
         IClientTransport transport;
         if (target.StdioCommand is not null)
@@ -34,17 +41,28 @@ internal static class ServerConnector
                 WorkingDirectory = target.WorkingDirectory,
                 EnvironmentVariables = target.Environment.Count == 0 ? null : new Dictionary<string, string?>(target.Environment),
                 StandardErrorLines = serverStderr.Add,
+                ShutdownTimeout = s_shutdownTimeout,
             });
         }
         else if (target.HttpEndpoint is not null)
         {
-            transport = new HttpClientTransport(new HttpClientTransportOptions
+            // --timeout is the only time limit, so the HttpClient has none of its own.
+            var http = new HttpClient(challenge, disposeHandler: true)
             {
-                Name = "mcpprobe-target",
-                Endpoint = target.HttpEndpoint,
-                AdditionalHeaders = target.Headers.Count == 0 ? null : new Dictionary<string, string>(target.Headers),
-                TransportMode = target.TransportMode,
-            });
+                Timeout = Timeout.InfiniteTimeSpan,
+            };
+            transport = new HttpClientTransport(
+                new HttpClientTransportOptions
+                {
+                    Name = "mcpprobe-target",
+                    Endpoint = target.HttpEndpoint,
+                    AdditionalHeaders = target.Headers.Count == 0 ? null : new Dictionary<string, string>(target.Headers),
+                    TransportMode = target.TransportMode,
+                    ConnectionTimeout = target.Timeout,
+                },
+                http,
+                loggerFactory: null,
+                ownsHttpClient: true);
         }
         else
         {
