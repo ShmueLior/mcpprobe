@@ -58,6 +58,43 @@ internal static class NamingStyles
         _ => "mixed",
     };
 
+    /// <summary>Like <see cref="Label"/>, but names the markers that make a name <see cref="NamingStyle.Other"/>.</summary>
+    public static string Describe(string name, NamingStyle style)
+    {
+        if (style != NamingStyle.Other)
+        {
+            return Label(style);
+        }
+
+        var markers = new List<string>();
+        if (name.Contains('_', StringComparison.Ordinal))
+        {
+            markers.Add("'_'");
+        }
+
+        if (name.Contains('-', StringComparison.Ordinal))
+        {
+            markers.Add("'-'");
+        }
+
+        if (name.Contains('.', StringComparison.Ordinal))
+        {
+            markers.Add("'.'");
+        }
+
+        if (name.Any(char.IsUpper))
+        {
+            markers.Add("uppercase");
+        }
+
+        return markers.Count switch
+        {
+            0 => Label(style),
+            1 => $"irregular ({markers[0]})",
+            _ => $"mixed ({string.Join(" and ", markers)})",
+        };
+    }
+
     private static bool IsSeparated(string name, char separator)
     {
         var parts = name.Split(separator);

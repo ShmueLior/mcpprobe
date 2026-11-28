@@ -57,6 +57,27 @@ public sealed class ToolLinterTests
     }
 
     [Fact]
+    public void MCPP002_FourWordDescriptionIsFine_ButOneOrTwoWordsStillFlag()
+    {
+        // 19 characters, 4 words: a clear description that is one character under the minimum.
+        Assert.Empty(Lint(Tool("fileshares_fileshare_delete", description: "Delete a file share")));
+        Assert.Equal("MCPP002", Assert.Single(Lint(Tool("search", description: "Searches."))).RuleId);
+        Assert.Equal("MCPP002", Assert.Single(Lint(Tool("search", description: "Search the web"))).RuleId);
+        Assert.Empty(Lint(Tool("search", description: "Search the web now")));
+    }
+
+    [Fact]
+    public void MCPP002_WordGateIsConfigurable_AndZeroRestoresCharacterOnly()
+    {
+        var tool = Tool("fileshares_fileshare_delete", description: "Delete a file share");
+
+        Assert.Equal("MCPP002", Assert.Single(Lint(new LintOptions { MinToolDescriptionWords = 0 }, tool)).RuleId);
+        Assert.Equal("MCPP002", Assert.Single(Lint(new LintOptions { MinToolDescriptionWords = 5 }, tool)).RuleId);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Lint(new LintOptions { MinToolDescriptionWords = -1 }, tool));
+        Assert.Empty(Lint(new LintOptions { MinToolDescriptionLength = 0, MinToolDescriptionWords = 0 }, tool));
+    }
+
+    [Fact]
     public void MCPP003_ParameterWithoutDescription()
     {
         var finding = Assert.Single(Lint(Tool("search", Params(("query", null), ("limit", "Max results.")), GoodDescription)));
@@ -97,6 +118,42 @@ public sealed class ToolLinterTests
     }
 
     [Fact]
+    public void MCPP005_NoMajorityMeansNoFinding()
+    {
+        // One snake_case and one PascalCase: neither is "most".
+        Assert.Empty(Lint(Tool("get_weather", description: GoodDescription), Tool("GetRadar", description: GoodDescription)));
+        Assert.Empty(Lint(
+            Tool("a_one", description: GoodDescription),
+            Tool("b_two", description: GoodDescription),
+            Tool("CThree", description: GoodDescription),
+            Tool("DFour", description: GoodDescription),
+            Tool("e-five_six", description: GoodDescription)));
+        Assert.Empty(Lint(
+            Tool("a_one", description: GoodDescription),
+            Tool("bTwo", description: GoodDescription),
+            Tool("CThree", description: GoodDescription)));
+    }
+
+    [Fact]
+    public void MCPP005_MixedNameSaysWhatIsMixed()
+    {
+        var findings = Lint(
+            Tool("get_weather", description: GoodDescription),
+            Tool("get_alerts", description: GoodDescription),
+            Tool("get_radar-map", description: GoodDescription),
+            Tool("Get_Forecast", description: GoodDescription),
+            Tool("get.tides", description: GoodDescription));
+
+        Assert.Equal(
+            [
+                "Tool name 'Get_Forecast' is mixed ('_' and uppercase), but most tool names on this server are snake_case.",
+                "Tool name 'get.tides' is irregular ('.'), but most tool names on this server are snake_case.",
+                "Tool name 'get_radar-map' is mixed ('_' and '-'), but most tool names on this server are snake_case.",
+            ],
+            findings.Select(f => f.Message).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public void MCPP005_LowercaseWordsAndSingleStyleAreFine()
     {
         Assert.Empty(Lint(Tool("search", description: GoodDescription), Tool("fetch", description: GoodDescription), Tool("get_items", description: GoodDescription)));
@@ -112,6 +169,48 @@ public sealed class ToolLinterTests
 
         var finding = Assert.Single(findings);
         Assert.Equal(("MCPP006", "b_tool", "zipCode"), (finding.RuleId, finding.ToolName, finding.ParameterName));
+    }
+
+    [Fact]
+    public void MCPP006_NoMajorityMeansNoFinding()
+    {
+        Assert.Empty(Lint(
+            Tool("a_tool", Params(("city_name", "City.")), GoodDescription),
+            Tool("b_tool", Params(("zipCode", "Zip.")), GoodDescription)));
+    }
+
+    [Theory]
+    [InlineData("keyvault_secret_create", "value")]
+    [InlineData("appconfig_kv_set", "value")]
+    [InlineData("eventgrid_events_publish", "data")]
+    [InlineData("CreateSecret", "value")]
+    [InlineData("update-record", "Payload")]
+    public void MCPP007_SkipsAPayloadParameterWhenTheToolNameSaysWhatItDoes(string toolName, string parameter)
+    {
+        Assert.Empty(Lint(Tool(toolName, Params((parameter, "The thing to write.")), GoodDescription)));
+    }
+
+    [Theory]
+    [InlineData("get_secret", "value")]
+    [InlineData("list_items", "data")]
+    [InlineData("create_secret", "thing")]
+    [InlineData("create_secret", "x")]
+    [InlineData("recreate_secret", "value")]
+    public void MCPP007_StillFlagsOtherToolsAndOtherNames(string toolName, string parameter)
+    {
+        var finding = Assert.Single(Lint(Tool(toolName, Params((parameter, "The thing to write.")), GoodDescription)));
+        Assert.Equal(("MCPP007", parameter), (finding.RuleId, finding.ParameterName));
+    }
+
+    [Fact]
+    public void MCPP007_ClearingPayloadContextTokensChecksEverything()
+    {
+        var options = new LintOptions();
+        options.PayloadContextTokens.Clear();
+        var tool = Tool("create_secret", Params(("value", "The secret.")), GoodDescription);
+
+        Assert.Empty(Lint(tool));
+        Assert.Equal("MCPP007", Assert.Single(Lint(options, tool)).RuleId);
     }
 
     [Fact]

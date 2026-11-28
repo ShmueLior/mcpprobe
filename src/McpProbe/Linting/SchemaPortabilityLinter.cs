@@ -139,14 +139,16 @@ internal static class SchemaPortabilityLinter
 
     private static void LintNode(JsonObject node, string path, string? keyword, WalkContext ctx)
     {
-        if (TryGetPortableTypeUnion(node, out var types) && ctx.Options.IsPortabilityRuleEnabled(LintRules.TypeUnion))
+        if (TryGetPortableTypeUnion(node, out var types) &&
+            !IsNullableUnion(types) &&
+            ctx.Options.IsPortabilityRuleEnabled(LintRules.TypeUnion))
         {
             var rendered = string.Join(",", types.Select(t => "{\"type\":\"" + t + "\"}"));
             var caveat = types.Contains("null", StringComparer.Ordinal)
-                ? " OpenAPI 3.0 writes nullability as nullable: true, which is not JSON Schema."
+                ? " A null branch is not the same as an optional property."
                 : "";
             Add(ctx, LintRules.TypeUnion, path,
-                $"`type` is an array ({FormatTypeArray(types)}). This is legal JSON Schema but less portable: a client that expects a single type may reject the tool. Split it into anyOf of single types: {{\"anyOf\":[{rendered}]}}. Optional is a different contract: absent is not null.{caveat}");
+                $"`type` is a union array ({FormatTypeArray(types)}). Some clients expect a single type and may reject the tool. Prefer anyOf of single-type schemas: {{\"anyOf\":[{rendered}]}}.{caveat}");
         }
 
         var reference = JsonSchemaReader.GetString(node, "$ref");
@@ -286,6 +288,10 @@ internal static class SchemaPortabilityLinter
 
         return true;
     }
+
+    // [T,"null"] is how the C# and Go SDKs spell T?, and an author can't change it, so it is not reported.
+    private static bool IsNullableUnion(List<string> types) =>
+        types.Count == 2 && types.Contains("null", StringComparer.Ordinal);
 
     private static string FormatTypeArray(List<string> types) =>
         "[" + string.Join(",", types.Select(t => "\"" + t + "\"")) + "]";

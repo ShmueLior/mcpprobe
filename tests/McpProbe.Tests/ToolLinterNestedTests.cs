@@ -25,6 +25,16 @@ public sealed class ToolLinterNestedTests
     }
 
     [Fact]
+    public void PayloadSkip_AppliesToTopLevelOnly_SoANestedDataOnACreateToolStillFlags()
+    {
+        var schema = """{"type":"object","properties":{"data":{"type":"object","description":"Payload.","properties":{"data":{"type":"string","description":"Inner."}}}}}""";
+        var findings = ToolLinter.Lint([Tool("create_item", schema, GoodDescription)], new LintOptions { CheckNestedParameters = true }).Findings;
+
+        var finding = Assert.Single(findings);
+        Assert.Equal(("MCPP007", "data.data"), (finding.RuleId, finding.ParameterName));
+    }
+
+    [Fact]
     public void NestedPropertiesAndArrayItems_AreChecked()
     {
         var findings = Lint("""

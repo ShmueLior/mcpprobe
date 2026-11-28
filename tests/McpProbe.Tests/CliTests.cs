@@ -164,8 +164,8 @@ public sealed class CliTests : IDisposable
     [Fact]
     public async Task Lint_Strict_IsOptInAndFailsOnlyOnPortabilityErrors()
     {
-        var allRules = """{"type":"object","properties":{"city":{"description":"City name.","anyOf":[true,{"type":["null","boolean"]},{},{"$ref":"https://example.com/schema.json"}]}}}""";
-        var warningsOnly = """{"type":"object","properties":{"city":{"description":"City name.","type":["null","boolean"]}}}""";
+        var allRules = """{"type":"object","properties":{"city":{"description":"City name.","anyOf":[true,{"type":["boolean","integer"]},{},{"$ref":"https://example.com/schema.json"}]}}}""";
+        var warningsOnly = """{"type":"object","properties":{"city":{"description":"City name.","type":["boolean","integer"]}}}""";
         var allFile = WriteSurface("all.json", Surface(Tool("unportable", allRules, "A tool whose schema exercises each portability rule.")));
         var warnFile = WriteSurface("warn.json", Surface(Tool("union", warningsOnly, "A tool whose schema uses a type union.")));
 
@@ -177,7 +177,7 @@ public sealed class CliTests : IDisposable
         Assert.Equal(ExitCodes.CheckFailed, exit);
         Assert.Contains("error MCPP009", output, StringComparison.Ordinal);
         Assert.Contains("warning MCPP010", output, StringComparison.Ordinal);
-        Assert.Contains("nullable: true", output, StringComparison.Ordinal);
+        Assert.Contains("`type` is a union array", output, StringComparison.Ordinal);
         Assert.DoesNotContain("...", output, StringComparison.Ordinal);
         Assert.Contains("warning MCPP011", output, StringComparison.Ordinal);
         Assert.Contains("warning MCPP012", output, StringComparison.Ordinal);

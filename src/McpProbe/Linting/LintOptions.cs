@@ -6,10 +6,26 @@ public sealed class LintOptions
     /// <summary>Gets or sets the minimum tool description length, in characters, for MCPP002. Defaults to 20.</summary>
     public int MinToolDescriptionLength { get; set; } = 20;
 
+    /// <summary>
+    /// Gets or sets how many words a description needs to be exempt from MCPP002 when it is shorter than
+    /// <see cref="MinToolDescriptionLength"/>. Defaults to 4, so "Delete a file share" passes. Set 0 to check length only, as before.
+    /// </summary>
+    public int MinToolDescriptionWords { get; set; } = 4;
+
     /// <summary>Gets the parameter names MCPP007 treats as vague. Compared case-insensitively.</summary>
     public ISet<string> VagueParameterNames { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "arg", "args", "data", "input", "item", "obj", "object", "param", "params", "payload", "str", "thing", "val", "value", "x",
+    };
+
+    /// <summary>
+    /// Gets the tool name segments (such as <c>create</c> in <c>keyvault_secret_create</c>) that make MCPP007 skip a top-level
+    /// <c>value</c>, <c>data</c>, <c>payload</c> or similar parameter, because the tool name says what it is. Names are split
+    /// on '_', '-', '.' and case changes. Compared case-insensitively. Clear it to check those parameters everywhere.
+    /// </summary>
+    public ISet<string> PayloadContextTokens { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "add", "create", "insert", "patch", "post", "publish", "put", "replace", "send", "set", "update", "upsert", "write",
     };
 
     /// <summary>

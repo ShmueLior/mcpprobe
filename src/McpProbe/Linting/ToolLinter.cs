@@ -18,6 +18,11 @@ namespace McpProbe.Linting;
 /// </remarks>
 public static class ToolLinter
 {
+    private static readonly HashSet<string> PayloadParameterNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "arg", "args", "data", "input", "item", "obj", "object", "param", "params", "payload", "val", "value",
+    };
+
     /// <summary>Lints protocol tools.</summary>
     /// <param name="tools">The tools.</param>
     /// <param name="options">Rule options. Defaults to <see cref="LintOptions"/> defaults.</param>
@@ -49,6 +54,11 @@ public static class ToolLinter
         if (options.MinToolDescriptionLength < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "MinToolDescriptionLength can't be negative.");
+        }
+
+        if (options.MinToolDescriptionWords < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "MinToolDescriptionWords can't be negative.");
         }
 
         var findings = new List<LintFinding>();
@@ -130,7 +140,7 @@ public static class ToolLinter
                     $"{noun} '{path}' has no description. Say what it is and what format it expects.");
             }
 
-            if (options.VagueParameterNames.Contains(name))
+            if (options.VagueParameterNames.Contains(name) && !IsPayloadOfCreateTool(walk.Tool, prefix, name, options))
             {
                 Add(findings, options, LintRules.VagueParameterName, tool, path,
                     $"{noun} name '{path}' is vague. Use a name that says what the value is (for example 'city' instead of 'value').");
@@ -142,6 +152,12 @@ public static class ToolLinter
             }
         }
     }
+
+    // "value" on set_secret or "data" on publish_events says what it is through the tool name. Top level only.
+    private static bool IsPayloadOfCreateTool(string tool, string? prefix, string name, LintOptions options) =>
+        prefix is null &&
+        PayloadParameterNames.Contains(name) &&
+        SplitName(tool).Any(options.PayloadContextTokens.Contains);
 
     private static void CheckToolName(string name, LintOptions options, List<LintFinding> findings)
     {
@@ -169,7 +185,8 @@ public static class ToolLinter
             Add(findings, options, LintRules.DescriptionRestatesName, tool.Name, null,
                 "Description only restates the tool name. Say what the tool does, what it returns and when to use it.");
         }
-        else if (description.Length < options.MinToolDescriptionLength)
+        else if (description.Length < options.MinToolDescriptionLength &&
+            (options.MinToolDescriptionWords == 0 || description.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length < options.MinToolDescriptionWords))
         {
             Add(findings, options, LintRules.ToolDescriptionTooShort, tool.Name, null,
                 string.Create(CultureInfo.InvariantCulture,
@@ -320,17 +337,19 @@ public static class ToolLinter
             return;
         }
 
-        // Majority wins; ties go to the style used first (inputs are sorted by tool name).
-        var majority = counts
-            .OrderByDescending(c => c.Count)
-            .ThenBy(c => classified.FindIndex(i => i.Style == c.Style))
-            .First()
-            .Style;
+        // A majority needs strictly more names than every other style. On a tie nothing is "most", so report nothing.
+        var top = counts.Max(c => c.Count);
+        var leaders = counts.Where(c => c.Count == top).ToList();
+        if (leaders.Count != 1)
+        {
+            return;
+        }
 
+        var majority = leaders[0].Style;
         foreach (var item in classified.Where(i => i.Style != majority))
         {
             Add(findings, options, rule, item.Tool, item.Parameter,
-                $"{noun} name '{item.Name}' is {NamingStyles.Label(item.Style)}, but most {noun.ToLowerInvariant()} names on this server are {NamingStyles.Label(majority)}.");
+                $"{noun} name '{item.Name}' is {NamingStyles.Describe(item.Name, item.Style)}, but most {noun.ToLowerInvariant()} names on this server are {NamingStyles.Label(majority)}.");
         }
     }
 
