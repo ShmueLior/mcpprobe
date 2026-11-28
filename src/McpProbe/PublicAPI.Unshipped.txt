@@ -116,6 +116,7 @@ McpProbe.McpProbeHost.DisposeAsync() -> System.Threading.Tasks.ValueTask
 McpProbe.McpProbeHost.LintToolsAsync(McpProbe.Linting.LintOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<McpProbe.Linting.LintReport!>!
 McpProbe.McpProbeHost.Server.get -> ModelContextProtocol.Server.McpServer!
 McpProbe.McpProbeHost.Services.get -> System.IServiceProvider!
+McpProbe.McpProbeHost.VerifyToolSnapshotAsync(McpProbe.Snapshots.SnapshotOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string! callerFilePath = "") -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurfaceDiff!>!
 McpProbe.McpProbeHost.VerifyToolSnapshotAsync(string! snapshotPath = "mcp-tools.json", McpProbe.Snapshots.SnapshotOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string! callerFilePath = "") -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurfaceDiff!>!
 McpProbe.McpProbeHostOptions
 McpProbe.McpProbeHostOptions.ClientOptions.get -> ModelContextProtocol.Client.McpClientOptions?
@@ -251,7 +252,9 @@ static McpProbe.McpProbeHost.StartAsync(System.Action<Microsoft.Extensions.Depen
 static McpProbe.Snapshots.ToolContractAnnotations.operator !=(McpProbe.Snapshots.ToolContractAnnotations? left, McpProbe.Snapshots.ToolContractAnnotations? right) -> bool
 static McpProbe.Snapshots.ToolContractAnnotations.operator ==(McpProbe.Snapshots.ToolContractAnnotations? left, McpProbe.Snapshots.ToolContractAnnotations? right) -> bool
 static McpProbe.Snapshots.ToolSnapshot.GetReceivedPath(string! snapshotPath) -> string!
+static McpProbe.Snapshots.ToolSnapshot.Verify(McpProbe.Snapshots.ToolSurface! current, McpProbe.Snapshots.SnapshotOptions! options, string! callerFilePath = "") -> McpProbe.Snapshots.ToolSurfaceDiff!
 static McpProbe.Snapshots.ToolSnapshot.Verify(McpProbe.Snapshots.ToolSurface! current, string! snapshotPath = "mcp-tools.json", McpProbe.Snapshots.SnapshotOptions? options = null, string! callerFilePath = "") -> McpProbe.Snapshots.ToolSurfaceDiff!
+static McpProbe.Snapshots.ToolSnapshot.VerifyAsync(ModelContextProtocol.Client.McpClient! client, McpProbe.Snapshots.SnapshotOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string! callerFilePath = "") -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurfaceDiff!>!
 static McpProbe.Snapshots.ToolSnapshot.VerifyAsync(ModelContextProtocol.Client.McpClient! client, string! snapshotPath = "mcp-tools.json", McpProbe.Snapshots.SnapshotOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string! callerFilePath = "") -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurfaceDiff!>!
 static McpProbe.Snapshots.ToolSurface.CaptureAsync(ModelContextProtocol.Client.McpClient! client, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<McpProbe.Snapshots.ToolSurface!>!
 static McpProbe.Snapshots.ToolSurface.FromClientTools(System.Collections.Generic.IEnumerable<ModelContextProtocol.Client.McpClientTool!>! tools) -> McpProbe.Snapshots.ToolSurface!

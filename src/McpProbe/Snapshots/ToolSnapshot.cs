@@ -39,6 +39,23 @@ public static class ToolSnapshot
         return VerifyResolved(surface, ResolvePath(snapshotPath, options, callerFilePath), options ?? new SnapshotOptions());
     }
 
+    /// <summary>Captures the client's tool surface and checks it against the default snapshot file.</summary>
+    /// <param name="client">A connected client.</param>
+    /// <param name="options">Snapshot options.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <param name="callerFilePath">Filled in by the compiler.</param>
+    /// <returns>The diff between the snapshot and the current surface.</returns>
+    /// <exception cref="McpProbeSnapshotException">The check failed.</exception>
+    public static Task<ToolSurfaceDiff> VerifyAsync(
+        McpClient client,
+        SnapshotOptions options,
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string callerFilePath = "")
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return VerifyAsync(client, DefaultFileName, options, cancellationToken, callerFilePath);
+    }
+
     /// <summary>Checks a captured surface against a snapshot file.</summary>
     /// <param name="current">The current surface.</param>
     /// <param name="snapshotPath">The snapshot path. Relative paths resolve against <see cref="SnapshotOptions.Directory"/> or the calling source file's directory.</param>
@@ -54,6 +71,21 @@ public static class ToolSnapshot
     {
         ArgumentNullException.ThrowIfNull(current);
         return VerifyResolved(current, ResolvePath(snapshotPath, options, callerFilePath), options ?? new SnapshotOptions());
+    }
+
+    /// <summary>Checks a captured surface against the default snapshot file.</summary>
+    /// <param name="current">The current surface.</param>
+    /// <param name="options">Snapshot options.</param>
+    /// <param name="callerFilePath">Filled in by the compiler.</param>
+    /// <returns>The diff between the snapshot and the current surface.</returns>
+    /// <exception cref="McpProbeSnapshotException">The check failed.</exception>
+    public static ToolSurfaceDiff Verify(
+        ToolSurface current,
+        SnapshotOptions options,
+        [CallerFilePath] string callerFilePath = "")
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return Verify(current, DefaultFileName, options, callerFilePath);
     }
 
     /// <summary>Gets the path of the file written next to a snapshot when the check fails.</summary>

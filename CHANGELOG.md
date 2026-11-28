@@ -10,6 +10,11 @@ All notable changes to this project are documented here. The format is based on
 - `LintReport.ToHtml()` and `ToolSurfaceDiff.ToHtml()`: a self-contained HTML page (inline CSS, no scripts) with a banner, a summary and, when there are findings or changes, a table. Server text is sanitized and HTML-encoded.
 - `mcpprobe lint --report <file>` and `mcpprobe diff --report <file>` also write that page. Stdout and exit codes are unchanged. The file is written on exit 0 and 1, not on a usage or connection error (exit 2).
 - GitHub Action and Azure Pipelines template inputs `strict`, `transport`, and `report`. All three are off by default, so existing workflows keep the same CLI invocation. `report` is a directory (`lint.html` and `diff.html`); the job summary is unchanged, and artifact upload is left to the workflow (`actions/upload-artifact` / `PublishPipelineArtifact@1`). `report` requires a CLI that has `--report`; the wrapper fails fast if the installed tool does not.
+- Options-first overloads for `McpProbeHost.VerifyToolSnapshotAsync`, `ToolSnapshot.Verify` and `ToolSnapshot.VerifyAsync`, so `VerifyToolSnapshotAsync(new SnapshotOptions { ... })` compiles. The existing path-first signatures are unchanged. A call that names only `options:` is now ambiguous; pass the snapshot path, or pass the options positionally to use the new overload.
+
+### Fixed
+
+- The README Quickstart now includes a short `WeatherTools` type (with `UseStructuredContent`) and the missing usings, so it compiles and runs as written. The snapshot example shows a real `VerifyToolSnapshotAsync` call with `Log`. Notes were added for `*.received.json` in `.gitignore` and for the CLI's net8.0/net10.0 runtime and `DOTNET_ROOT`.
 
 ### Changed
 

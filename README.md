@@ -28,17 +28,34 @@ dotnet add package McpProbe --prerelease
 using McpProbe;
 using McpProbe.Assertions;
 using Microsoft.Extensions.DependencyInjection; // WithTools<T>()
+using ModelContextProtocol.Server;
+using System.ComponentModel;
 
-[Fact]
-public async Task Forecast_works()
+[McpServerToolType]
+public sealed class WeatherTools
 {
-    await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithTools<WeatherTools>());
+    [McpServerTool(Name = "get_forecast", UseStructuredContent = true)]
+    [Description("Gets a daily weather forecast for a city.")]
+    public static Forecast GetForecast(
+        [Description("City name, for example 'Paris'.")] string city)
+        => new Forecast(city, "Sunny");
+}
 
-    var tools = await probe.Client.ListToolsAsync();
-    McpAssert.That(tools).ContainsTool("get_forecast").HasParameter("city", type: "string", required: true);
+public sealed record Forecast(string City, string Summary);
 
-    var result = await probe.Client.CallToolAsync("get_forecast", new Dictionary<string, object?> { ["city"] = "Paris" });
-    McpAssert.That(result).Succeeded().HasStructuredValue("city", "Paris");
+public class WeatherServerTests
+{
+    [Fact]
+    public async Task Forecast_works()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithTools<WeatherTools>());
+
+        var tools = await probe.Client.ListToolsAsync();
+        McpAssert.That(tools).ContainsTool("get_forecast").HasParameter("city", type: "string", required: true);
+
+        var result = await probe.Client.CallToolAsync("get_forecast", new Dictionary<string, object?> { ["city"] = "Paris" });
+        McpAssert.That(result).Succeeded().HasStructuredValue("city", "Paris");
+    }
 }
 ```
 
@@ -61,9 +78,14 @@ McpAssert.That(resources).ContainsResource("weather://cities").HasMimeType("text
 ## Snapshot workflow
 
 ```csharp
+using McpProbe.Snapshots;
+
 [Fact]
-public Task Tool_surface_matches_snapshot() => probe.VerifyToolSnapshotAsync();
+public Task Tool_surface_matches_snapshot() =>
+    probe.VerifyToolSnapshotAsync(new SnapshotOptions { Log = output.WriteLine });
 ```
+
+`output.WriteLine` is xUnit's `ITestOutputHelper`. To use the default file name with no options, call `VerifyToolSnapshotAsync()`.
 
 1. The first run writes `mcp-tools.json` next to the test file and fails, so you look at it. Commit it.
 2. Later runs compare the live tool surface with the file:
@@ -72,7 +94,7 @@ public Task Tool_surface_matches_snapshot() => probe.VerifyToolSnapshotAsync();
    - Local `$ref`s (`#/$defs/...`, `#/definitions/...`, and the `#/properties/...` refs the C# SDK emits for recursive types) are followed, so a change inside a referenced schema is classified like an inline one.
    - Schema-valued `additionalProperties` (and `unevaluatedProperties`, `additionalItems`, `unevaluatedItems`) are compared like nested schemas, at paths such as `input.meta[additionalProperties]`.
    - Schema keywords McpProbe doesn't classify yet (such as `allOf`, `anyOf` or `oneOf`) are reported as non-breaking, marked "review by hand".
-3. On a failure, the current surface is written to `mcp-tools.received.json`. To accept the change, run with `MCPPROBE_UPDATE_SNAPSHOTS=1` (or set `SnapshotOptions.Update`), review the diff in git, and commit.
+3. On a failure, the current surface is written to `mcp-tools.received.json`. Add `*.received.json` to your `.gitignore` so those files aren't committed. To accept the change, run with `MCPPROBE_UPDATE_SNAPSHOTS=1` (or set `SnapshotOptions.Update`), review the diff in git, and commit.
 
 On CI (`CI` or `TF_BUILD` set), a missing snapshot is not created: the test fails. Set `SnapshotOptions.FailOnNonBreakingChanges` to fail on every change.
 
@@ -92,6 +114,8 @@ Non-breaking:
 ## Lint rules
 
 ```csharp
+using McpProbe.Linting;
+
 var report = await probe.LintToolsAsync();
 report.ThrowIfFailed(); // fails on warnings and errors by default
 
@@ -135,6 +159,8 @@ mcpprobe diff     --stdio "dotnet run --project src/MyServer" --baseline mcp-too
 mcpprobe lint     --http https://localhost:5001/mcp --header "Authorization: Bearer $TOKEN"
 mcpprobe lint     --http http://localhost:5000/sse --transport sse --header "Authorization: Bearer $TOKEN"
 ```
+
+The `mcpprobe` tool is packed for net8.0 and net10.0 (`RollForward=Major`), so a .NET 8 or .NET 10 runtime must be installed. An SDK is also needed if the `--stdio` command is `dotnet run`. If the apphost errors with "You must install .NET to run this application" even though `dotnet` works, set `DOTNET_ROOT` to that install's root (the directory that contains `dotnet` and the `shared` folder).
 
 `--http` already tries Streamable HTTP and falls back to legacy SSE. Use `--transport streamable-http` or `--transport sse` to pin a mode (`auto` is the default). Legacy SSE servers usually listen at `/sse` (and `/message`), not at the Streamable HTTP path. If the server maps MCP at a prefix such as `/mcp` and enables legacy SSE, the C# SDK places those endpoints under the prefix (`/mcp/sse` and `/mcp/message`). There is no WebSocket transport.
 

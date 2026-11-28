@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using McpProbe.Snapshots;
 using McpProbe.Tests.TestSupport;
 using WeatherServer;
@@ -28,20 +29,20 @@ public sealed class ToolSnapshotTests : IDisposable
     [Fact]
     public void MissingSnapshot_IsWrittenAndFailsOnce()
     {
-        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, options: Local()));
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local()));
 
         Assert.Contains("No tool snapshot existed, so one was written", error.Message, StringComparison.Ordinal);
         Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
         Assert.Equal(Baseline.ToJson(), File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)));
 
         // Second run passes.
-        Assert.False(ToolSnapshot.Verify(Baseline, options: Local()).HasChanges);
+        Assert.False(ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local()).HasChanges);
     }
 
     [Fact]
     public void MissingSnapshot_OnCi_FailsWithoutWritingIt()
     {
-        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, options: Local(o => o.CreateMissing = false)));
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local(o => o.CreateMissing = false)));
 
         Assert.Contains("Tool snapshot not found", error.Message, StringComparison.Ordinal);
         Assert.False(File.Exists(_dir.File("mcp-tools.json")));
@@ -54,7 +55,7 @@ public sealed class ToolSnapshotTests : IDisposable
         WriteBaseline();
         File.WriteAllText(_dir.File("mcp-tools.received.json"), "stale");
 
-        var diff = ToolSnapshot.Verify(Baseline, options: Local());
+        var diff = ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local());
 
         Assert.False(diff.HasChanges);
         Assert.False(File.Exists(_dir.File("mcp-tools.received.json")));
@@ -66,7 +67,7 @@ public sealed class ToolSnapshotTests : IDisposable
         WriteBaseline();
         var current = Surface(Tool("get_forecast", """{"type":"object","properties":{"location":{"type":"string"}},"required":["location"]}"""));
 
-        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(current, options: Local()));
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(current, ToolSnapshot.DefaultFileName, Local()));
 
         Assert.Contains("has breaking changes", error.Message, StringComparison.Ordinal);
         Assert.Contains("- get_alerts: Tool was removed.", error.Message, StringComparison.Ordinal);
@@ -84,7 +85,7 @@ public sealed class ToolSnapshotTests : IDisposable
         var current = Surface(Tool("get_forecast", CityRequired), Tool("get_alerts"), Tool("get_radar"));
         var logs = new List<string>();
 
-        var diff = ToolSnapshot.Verify(current, options: Local(o => o.Log = logs.Add));
+        var diff = ToolSnapshot.Verify(current, ToolSnapshot.DefaultFileName, Local(o => o.Log = logs.Add));
 
         Assert.True(diff.HasChanges);
         Assert.False(diff.HasBreakingChanges);
@@ -99,7 +100,7 @@ public sealed class ToolSnapshotTests : IDisposable
         WriteBaseline();
         var current = Surface(Tool("get_forecast", CityRequired), Tool("get_alerts"), Tool("get_radar"));
 
-        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(current, options: Local(o => o.FailOnNonBreakingChanges = true)));
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(current, ToolSnapshot.DefaultFileName, Local(o => o.FailOnNonBreakingChanges = true)));
 
         Assert.Contains("The tool surface changed", error.Message, StringComparison.Ordinal);
     }
@@ -110,17 +111,17 @@ public sealed class ToolSnapshotTests : IDisposable
         WriteBaseline();
         var current = Surface(Tool("only_tool"));
 
-        var diff = ToolSnapshot.Verify(current, options: Local(o => o.Update = true));
+        var diff = ToolSnapshot.Verify(current, ToolSnapshot.DefaultFileName, Local(o => o.Update = true));
 
         Assert.True(diff.HasBreakingChanges);
         Assert.Equal(current.ToJson(), File.ReadAllText(_dir.File("mcp-tools.json")));
-        Assert.False(ToolSnapshot.Verify(current, options: Local()).HasChanges);
+        Assert.False(ToolSnapshot.Verify(current, ToolSnapshot.DefaultFileName, Local()).HasChanges);
     }
 
     [Fact]
     public void UpdateMode_CreatesMissingSnapshotWithoutFailing()
     {
-        var diff = ToolSnapshot.Verify(Baseline, options: Local(o => { o.Update = true; o.CreateMissing = false; }));
+        var diff = ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local(o => { o.Update = true; o.CreateMissing = false; }));
 
         Assert.False(diff.HasChanges);
         Assert.True(File.Exists(_dir.File("mcp-tools.json")));
@@ -131,10 +132,10 @@ public sealed class ToolSnapshotTests : IDisposable
     {
         File.WriteAllText(_dir.File("mcp-tools.json"), "{ not json");
 
-        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, options: Local()));
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local()));
         Assert.Contains("could not be read", error.Message, StringComparison.Ordinal);
 
-        ToolSnapshot.Verify(Baseline, options: Local(o => o.Update = true));
+        ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local(o => o.Update = true));
         Assert.Equal(Baseline.ToJson(), File.ReadAllText(_dir.File("mcp-tools.json")));
     }
 
@@ -143,7 +144,7 @@ public sealed class ToolSnapshotTests : IDisposable
     {
         File.WriteAllText(_dir.File("mcp-tools.json"), Baseline.ToJson().Replace("\n", "\r\n", StringComparison.Ordinal).Replace("  ", "    ", StringComparison.Ordinal));
 
-        Assert.False(ToolSnapshot.Verify(Baseline, options: Local()).HasChanges);
+        Assert.False(ToolSnapshot.Verify(Baseline, ToolSnapshot.DefaultFileName, Local()).HasChanges);
     }
 
     [Fact]
@@ -194,12 +195,106 @@ public sealed class ToolSnapshotTests : IDisposable
     {
         await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<McpProbeSnapshotException>(() => probe.VerifyToolSnapshotAsync(options: Local(), cancellationToken: TestContext.Current.CancellationToken));
-        var diff = await probe.VerifyToolSnapshotAsync(options: Local(), cancellationToken: TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<McpProbeSnapshotException>(() => probe.VerifyToolSnapshotAsync(ToolSnapshot.DefaultFileName, Local(), TestContext.Current.CancellationToken));
+        var diff = await probe.VerifyToolSnapshotAsync(ToolSnapshot.DefaultFileName, Local(), TestContext.Current.CancellationToken);
 
         Assert.False(diff.HasChanges);
         Assert.Contains("\"get_forecast\"", File.ReadAllText(_dir.File("mcp-tools.json")), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task OptionsFirst_HostVerify_UsesDefaultFileNameAndHonorsOptions()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+            probe.VerifyToolSnapshotAsync(Local(), TestContext.Current.CancellationToken));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.True(File.Exists(_dir.File(ToolSnapshot.DefaultFileName)));
+        Assert.Contains("\"get_forecast\"", File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OptionsFirst_HostVerify_ResolvesPathFromTestFileNotHostSource()
+    {
+        var expected = ToolSnapshot.ResolvePath(ToolSnapshot.DefaultFileName, options: null, callerFilePath: ThisFile());
+        var received = ToolSnapshot.GetReceivedPath(expected);
+        try
+        {
+            await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+            var options = new SnapshotOptions { Update = false, CreateMissing = false };
+
+            var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+                probe.VerifyToolSnapshotAsync(options, TestContext.Current.CancellationToken));
+
+            Assert.Equal(expected, error.SnapshotPath);
+            Assert.DoesNotContain("McpProbeHost.cs", error.SnapshotPath, StringComparison.Ordinal);
+            Assert.Contains(Path.Combine("tests", "McpProbe.Tests"), error.SnapshotPath, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(expected))
+            {
+                File.Delete(expected);
+            }
+
+            if (File.Exists(received))
+            {
+                File.Delete(received);
+            }
+        }
+    }
+
+    [Fact]
+    public void OptionsFirst_Verify_UsesDefaultFileNameAndHonorsOptions()
+    {
+        var error = Assert.Throws<McpProbeSnapshotException>(() => ToolSnapshot.Verify(Baseline, Local()));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.Equal(Baseline.ToJson(), File.ReadAllText(_dir.File(ToolSnapshot.DefaultFileName)));
+    }
+
+    [Fact]
+    public async Task OptionsFirst_VerifyAsync_UsesDefaultFileNameAndHonorsOptions()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<McpProbeSnapshotException>(() =>
+            ToolSnapshot.VerifyAsync(probe.Client, Local(), TestContext.Current.CancellationToken));
+
+        Assert.Equal(_dir.File(ToolSnapshot.DefaultFileName), error.SnapshotPath);
+        Assert.True(File.Exists(_dir.File(ToolSnapshot.DefaultFileName)));
+    }
+
+    [Fact]
+    public void OptionsFirst_Verify_NullOptions_Throws()
+    {
+        var ex = Assert.Throws<ArgumentNullException>(() => ToolSnapshot.Verify(Baseline, (SnapshotOptions)null!));
+        Assert.Equal("options", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task OptionsFirst_VerifyAsync_NullOptions_Throws()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            ToolSnapshot.VerifyAsync(probe.Client, (SnapshotOptions)null!, TestContext.Current.CancellationToken));
+        Assert.Equal("options", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task OptionsFirst_HostVerify_NullOptions_Throws()
+    {
+        await using var probe = await McpProbeHost.StartAsync(mcp => mcp.WithWeatherFeatures(), TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            probe.VerifyToolSnapshotAsync((SnapshotOptions)null!, TestContext.Current.CancellationToken));
+        Assert.Equal("options", ex.ParamName);
+    }
+
+    private static string ThisFile([CallerFilePath] string path = "") => path;
 }
 
 [CollectionDefinition(nameof(EnvironmentVariableTests), DisableParallelization = true)]
