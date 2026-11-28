@@ -191,6 +191,126 @@ public sealed class CliTests : IDisposable
         Assert.Contains("error MCPP010", upgraded.Out, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Report_Lint_WritesHtmlAndLeavesStdoutAndExitCodeUnchanged()
+    {
+        var file = WriteSurface("tools.json", Surface(Tool("ok")));
+        var failing = WriteSurface("failing.json", Surface(Tool("bad", description: "")));
+        var report = _dir.File(Path.Combine("nested", "dir", "lint.html"));
+
+        var plain = await RunAsync("lint", "--from-file", file);
+        var withReport = await RunAsync("lint", "--from-file", file, "--report", report);
+
+        Assert.Equal(plain, withReport);
+        Assert.Contains("banner pass", File.ReadAllText(report), StringComparison.Ordinal);
+
+        var failedPlain = await RunAsync("lint", "--from-file", failing);
+        var failed = await RunAsync("lint", "--from-file", failing, "--report", report);
+        Assert.Equal(ExitCodes.CheckFailed, failed.Exit);
+        Assert.Equal(failedPlain, failed);
+        Assert.Contains("banner fail", File.ReadAllText(report), StringComparison.Ordinal);
+        Assert.Contains("MCPP001", File.ReadAllText(report), StringComparison.Ordinal);
+        Assert.Equal(["lint.html"], Directory.GetFiles(Path.GetDirectoryName(report)!).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public async Task Report_Diff_WritesHtmlOnExitZeroAndOne()
+    {
+        var baseline = WriteSurface("base.json", Surface(Tool("keep"), Tool("gone")));
+        var same = WriteSurface("same.json", Surface(Tool("keep"), Tool("gone")));
+        var added = WriteSurface("added.json", Surface(Tool("keep"), Tool("gone"), Tool("added")));
+        var removed = WriteSurface("removed.json", Surface(Tool("keep")));
+        var report = _dir.File("diff.html");
+
+        Assert.Equal(ExitCodes.Success, (await RunAsync("diff", "--baseline", baseline, "--from-file", same, "--report", report)).Exit);
+        Assert.Contains("Tool surface unchanged.", File.ReadAllText(report), StringComparison.Ordinal);
+
+        Assert.Equal(ExitCodes.Success, (await RunAsync("diff", "--baseline", baseline, "--from-file", added, "--report", report)).Exit);
+        Assert.Contains("Non-breaking changes only", File.ReadAllText(report), StringComparison.Ordinal);
+
+        var flagged = await RunAsync("diff", "--baseline", baseline, "--from-file", added, "--fail-on-non-breaking", "--report", report);
+        Assert.Equal(ExitCodes.CheckFailed, flagged.Exit);
+        Assert.Contains("Non-breaking changes only", File.ReadAllText(report), StringComparison.Ordinal);
+
+        var plain = await RunAsync("diff", "--baseline", baseline, "--from-file", removed);
+        var breaking = await RunAsync("diff", "--baseline", baseline, "--from-file", removed, "--report", report);
+        Assert.Equal(ExitCodes.CheckFailed, breaking.Exit);
+        Assert.Equal(plain, breaking);
+        Assert.Contains("Breaking changes", File.ReadAllText(report), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Report_SampleServerOverStdio_WritesBothReports()
+    {
+        var snapshot = _dir.File("mcp-tools.json");
+        var lintReport = _dir.File("lint.html");
+        var diffReport = _dir.File("diff.html");
+        Assert.Equal(0, (await RunAsync("snapshot", "--stdio", StdioCommand, "--out", snapshot)).Exit);
+
+        Assert.Equal(0, (await RunAsync("lint", "--stdio", StdioCommand, "--report", lintReport)).Exit);
+        Assert.Equal(0, (await RunAsync("diff", "--stdio", StdioCommand, "--baseline", snapshot, "--report", diffReport)).Exit);
+
+        Assert.Contains("No lint findings.", File.ReadAllText(lintReport), StringComparison.Ordinal);
+        Assert.Contains("Tool surface unchanged.", File.ReadAllText(diffReport), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Report_UsageAndConnectionErrorsDoNotWriteTheFile()
+    {
+        var current = WriteSurface("current.json", Surface(Tool("keep")));
+        var report = _dir.File("never.html");
+
+        var results = new[]
+        {
+            await RunAsync("lint", "--from-file", _dir.File("missing.json"), "--report", report),
+            await RunAsync("lint", "--from-file", current, "--rule", "MCPP999=none", "--report", report),
+            await RunAsync("lint", "--report", report),
+            await RunAsync("lint", "--http", "not a url", "--report", report),
+            await RunAsync("diff", "--baseline", _dir.File("nope.json"), "--from-file", current, "--report", report),
+            await RunAsync("diff", "--baseline", current, "--from-file", _dir.File("missing.json"), "--report", report),
+        };
+
+        Assert.All(results, r => Assert.Equal(ExitCodes.Error, r.Exit));
+        Assert.False(File.Exists(report));
+        Assert.Empty(Directory.GetFiles(_dir.Path, "never*"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Report_BlankPathIsAUsageError(string path)
+    {
+        var current = WriteSurface("current.json", Surface(Tool("keep")));
+
+        var lint = await RunAsync("lint", "--from-file", current, "--report", path);
+        var diff = await RunAsync("diff", "--baseline", current, "--from-file", current, "--report", path);
+
+        Assert.Equal(ExitCodes.Error, lint.Exit);
+        Assert.Equal(ExitCodes.Error, diff.Exit);
+        Assert.Contains("--report needs a file path", lint.Err + diff.Err, StringComparison.Ordinal);
+        Assert.Equal("", lint.Out + diff.Out);
+    }
+
+    [Fact]
+    public async Task Report_ReplacesAnExistingFile_AndAFailedWriteLeavesNoPartialFile()
+    {
+        var current = WriteSurface("current.json", Surface(Tool("keep")));
+        var report = _dir.File("report.html");
+        File.WriteAllText(report, "old");
+
+        Assert.Equal(0, (await RunAsync("lint", "--from-file", current, "--report", report)).Exit);
+        Assert.StartsWith("<!DOCTYPE html>", File.ReadAllText(report), StringComparison.Ordinal);
+
+        var directory = _dir.File("a-directory");
+        Directory.CreateDirectory(directory);
+        var (exit, _, error) = await RunAsync("lint", "--from-file", current, "--report", directory);
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.StartsWith("error:", error, StringComparison.Ordinal);
+        Assert.Empty(Directory.GetFileSystemEntries(directory));
+        Assert.DoesNotContain(Directory.GetFiles(_dir.Path), f => f.EndsWith(".tmp", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("MCPP999=none")]
     [InlineData("MCPP008=error")]

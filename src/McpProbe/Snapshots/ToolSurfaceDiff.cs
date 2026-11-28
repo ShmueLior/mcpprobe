@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using McpProbe.Internal;
 
 namespace McpProbe.Snapshots;
 
@@ -35,7 +36,7 @@ public sealed class ToolSurfaceDiff
         var breaking = BreakingChanges.ToList();
         var nonBreaking = NonBreakingChanges.ToList();
         var sb = new StringBuilder();
-        sb.Append(CultureInfo.InvariantCulture, $"Tool surface changed: {breaking.Count} breaking, {nonBreaking.Count} non-breaking.").Append('\n');
+        sb.Append(Summary(breaking.Count, nonBreaking.Count)).Append('\n');
 
         if (breaking.Count > 0)
         {
@@ -57,6 +58,33 @@ public sealed class ToolSurfaceDiff
 
         return sb.ToString().TrimEnd('\n');
     }
+
+    /// <summary>
+    /// Formats the changes as a complete, self-contained HTML document: inline CSS, no scripts and no external assets.
+    /// Server-supplied text is already sanitized and HTML-encoded, so the result is safe to write to a file.
+    /// </summary>
+    /// <returns>The HTML document.</returns>
+    public string ToHtml()
+    {
+        var rows = Changes.Select(c => (RowClass: c.IsBreaking ? "breaking" : "non-breaking", Cells: new[]
+        {
+            c.IsBreaking ? "breaking" : "non-breaking",
+            c.Kind.ToString(),
+            Printable.Text(c.ToolName, 100),
+            c.Path is null ? string.Empty : Printable.Text(c.Path, 200),
+            Printable.Text(c.Message, 500),
+        }));
+        return HtmlReport.Page(
+            "McpProbe diff report",
+            HasBreakingChanges ? "fail" : HasChanges ? "note" : "pass",
+            HasBreakingChanges ? "Breaking changes" : HasChanges ? "Non-breaking changes only" : "Unchanged",
+            HasChanges ? Summary(BreakingChanges.Count(), NonBreakingChanges.Count()) : "Tool surface unchanged.",
+            ["Impact", "Kind", "Tool", "Path", "Message"],
+            rows);
+    }
+
+    private static string Summary(int breaking, int nonBreaking) => string.Create(CultureInfo.InvariantCulture,
+        $"Tool surface changed: {breaking} breaking, {nonBreaking} non-breaking.");
 
     /// <inheritdoc />
     public override string ToString() => ToReport();
