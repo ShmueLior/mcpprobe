@@ -10,7 +10,7 @@ namespace McpProbe.Internal;
 internal static class HtmlReport
 {
     private const string Css =
-        "body{font-family:system-ui,sans-serif;margin:2rem;color:#1f2328}" +
+        "body{font-family:system-ui,sans-serif;margin:2rem;background:#fff;color:#1f2328}" +
         ".banner{display:inline-block;padding:.25rem .75rem;border-radius:.25rem;font-weight:600;color:#fff}" +
         ".pass{background:#1a7f37}.fail{background:#cf222e}.note{background:#9a6700}" +
         "table{border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #d0d7de;padding:.35rem .6rem;text-align:left;vertical-align:top}" +

@@ -7,7 +7,7 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
-- `LintReport.ToHtml()` and `ToolSurfaceDiff.ToHtml()`: a self-contained HTML page (inline CSS, no scripts) with a banner, a summary and a table. Server text is sanitized and HTML-encoded.
+- `LintReport.ToHtml()` and `ToolSurfaceDiff.ToHtml()`: a self-contained HTML page (inline CSS, no scripts) with a banner, a summary and, when there are findings or changes, a table. Server text is sanitized and HTML-encoded.
 - `mcpprobe lint --report <file>` and `mcpprobe diff --report <file>` also write that page. Stdout and exit codes are unchanged. The file is written on exit 0 and 1, not on a usage or connection error (exit 2).
 
 ## [0.3.0-preview] - 2026-11-28

@@ -222,10 +222,16 @@ public sealed class CliTests : IDisposable
         var removed = WriteSurface("removed.json", Surface(Tool("keep")));
         var report = _dir.File("diff.html");
 
-        Assert.Equal(ExitCodes.Success, (await RunAsync("diff", "--baseline", baseline, "--from-file", same, "--report", report)).Exit);
+        var plainSame = await RunAsync("diff", "--baseline", baseline, "--from-file", same);
+        var sameWithReport = await RunAsync("diff", "--baseline", baseline, "--from-file", same, "--report", report);
+        Assert.Equal(ExitCodes.Success, sameWithReport.Exit);
+        Assert.Equal(plainSame, sameWithReport);
         Assert.Contains("Tool surface unchanged.", File.ReadAllText(report), StringComparison.Ordinal);
 
-        Assert.Equal(ExitCodes.Success, (await RunAsync("diff", "--baseline", baseline, "--from-file", added, "--report", report)).Exit);
+        var plainAdded = await RunAsync("diff", "--baseline", baseline, "--from-file", added);
+        var addedWithReport = await RunAsync("diff", "--baseline", baseline, "--from-file", added, "--report", report);
+        Assert.Equal(ExitCodes.Success, addedWithReport.Exit);
+        Assert.Equal(plainAdded, addedWithReport);
         Assert.Contains("Non-breaking changes only", File.ReadAllText(report), StringComparison.Ordinal);
 
         var flagged = await RunAsync("diff", "--baseline", baseline, "--from-file", added, "--fail-on-non-breaking", "--report", report);
