@@ -289,7 +289,7 @@ public sealed class ToolLinterStrictTests
         Assert.False(report.Failed);
         report.ThrowIfFailed();
 
-        var shortDescription = ParseSurface("short", """{"type":"object"}""", "Short.");
+        var shortDescription = ParseSurface("short", """{"type":"object"}""", "Too short.");
         var mixed = ToolLinter.Lint(shortDescription, new LintOptions { Strict = true, FailOn = LintSeverity.Warning });
         Assert.Contains(mixed.Findings, f => f.RuleId == "MCPP002");
         Assert.True(mixed.Failed);

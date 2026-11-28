@@ -66,6 +66,7 @@ McpProbe.Linting.LintFinding.ToolName.init -> void
 McpProbe.Linting.LintOptions
 McpProbe.Linting.LintOptions.CheckNestedParameters.get -> bool
 McpProbe.Linting.LintOptions.CheckNestedParameters.set -> void
+McpProbe.Linting.LintOptions.DestructiveNameTokens.get -> System.Collections.Generic.ISet<string!>!
 McpProbe.Linting.LintOptions.FailOn.get -> McpProbe.Linting.LintSeverity
 McpProbe.Linting.LintOptions.FailOn.set -> void
 McpProbe.Linting.LintOptions.LintOptions() -> void
@@ -74,6 +75,7 @@ McpProbe.Linting.LintOptions.MinToolDescriptionLength.set -> void
 McpProbe.Linting.LintOptions.Severities.get -> System.Collections.Generic.IDictionary<string!, McpProbe.Linting.LintSeverity>!
 McpProbe.Linting.LintOptions.Strict.get -> bool
 McpProbe.Linting.LintOptions.Strict.set -> void
+McpProbe.Linting.LintOptions.StructuredOutputCues.get -> System.Collections.Generic.ISet<string!>!
 McpProbe.Linting.LintOptions.VagueParameterNames.get -> System.Collections.Generic.ISet<string!>!
 McpProbe.Linting.LintReport
 McpProbe.Linting.LintReport.FailOn.get -> McpProbe.Linting.LintSeverity
@@ -254,11 +256,15 @@ static McpProbe.Snapshots.ToolSurfaceChange.operator !=(McpProbe.Snapshots.ToolS
 static McpProbe.Snapshots.ToolSurfaceChange.operator ==(McpProbe.Snapshots.ToolSurfaceChange? left, McpProbe.Snapshots.ToolSurfaceChange? right) -> bool
 static McpProbe.Snapshots.ToolSurfaceComparer.Compare(McpProbe.Snapshots.ToolSurface! baseline, McpProbe.Snapshots.ToolSurface! current) -> McpProbe.Snapshots.ToolSurfaceDiff!
 static readonly McpProbe.Linting.LintRules.BooleanSchema -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.DescriptionRestatesName -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.DestructiveHintMismatch -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.EnumWithoutValuesOrType -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.InconsistentParameterNaming -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.InconsistentToolNaming -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.InvalidToolName -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.ParameterMissingDescription -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.RemoteRef -> McpProbe.Linting.LintRule!
+static readonly McpProbe.Linting.LintRules.StructuredOutputWithoutSchema -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.ToolDescriptionTooShort -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.ToolMissingDescription -> McpProbe.Linting.LintRule!
 static readonly McpProbe.Linting.LintRules.TypeUnion -> McpProbe.Linting.LintRule!

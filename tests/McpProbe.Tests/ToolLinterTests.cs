@@ -195,7 +195,7 @@ public sealed class ToolLinterTests
     public void Rules_HaveUniqueIds()
     {
         Assert.Equal(LintRules.All.Count, LintRules.All.Select(r => r.Id).Distinct().Count());
-        Assert.Equal(["MCPP001", "MCPP002", "MCPP003", "MCPP004", "MCPP005", "MCPP006", "MCPP007", "MCPP009", "MCPP010", "MCPP011", "MCPP012"], LintRules.All.Select(r => r.Id));
+        Assert.Equal(["MCPP001", "MCPP002", "MCPP003", "MCPP004", "MCPP005", "MCPP006", "MCPP007", "MCPP009", "MCPP010", "MCPP011", "MCPP012", "MCPP013", "MCPP014", "MCPP015", "MCPP016"], LintRules.All.Select(r => r.Id));
         Assert.DoesNotContain(LintRules.All, r => r.Id == "MCPP008");
     }
 

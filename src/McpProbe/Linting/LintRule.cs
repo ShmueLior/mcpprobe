@@ -44,6 +44,18 @@ public static class LintRules
     /// <summary>MCPP012: a <c>$ref</c> points outside the document. Requires <see cref="LintOptions.Strict"/>, or a severity override.</summary>
     public static readonly LintRule RemoteRef = new("MCPP012", "Schema $ref points outside this document", LintSeverity.Warning);
 
+    /// <summary>MCPP013: a tool's behavior hints contradict each other, or a destructive-looking name is marked non-destructive or read-only.</summary>
+    public static readonly LintRule DestructiveHintMismatch = new("MCPP013", "Destructive hint contradicts other hints or the tool name", LintSeverity.Warning);
+
+    /// <summary>MCPP014: the description says the tool returns structured results, but the tool has no <c>outputSchema</c>.</summary>
+    public static readonly LintRule StructuredOutputWithoutSchema = new("MCPP014", "Structured results described but no outputSchema", LintSeverity.Warning);
+
+    /// <summary>MCPP015: the tool description only restates the tool name or title.</summary>
+    public static readonly LintRule DescriptionRestatesName = new("MCPP015", "Tool description only restates the name", LintSeverity.Warning);
+
+    /// <summary>MCPP016: a schema has an empty <c>enum</c>, or an <c>enum</c> without a <c>type</c>.</summary>
+    public static readonly LintRule EnumWithoutValuesOrType = new("MCPP016", "Enum is empty or has no type", LintSeverity.Warning);
+
     /// <summary>Gets all built-in rules, ordered by id.</summary>
     public static IReadOnlyList<LintRule> All { get; } =
     [
@@ -58,6 +70,10 @@ public static class LintRules
         TypeUnion,
         UntypedSchema,
         RemoteRef,
+        DestructiveHintMismatch,
+        StructuredOutputWithoutSchema,
+        DescriptionRestatesName,
+        EnumWithoutValuesOrType,
     ];
 
     internal static bool IsPortabilityRule(string ruleId) =>
