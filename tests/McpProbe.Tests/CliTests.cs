@@ -449,14 +449,19 @@ public sealed class CliTests : IDisposable
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), watch.Elapsed.ToString());
     }
 
-    [Fact]
-    public async Task Stdio_TimeoutIsReported()
+    [Theory]
+    [InlineData("sleep 30")]
+    [InlineData("sh -c \"trap '' TERM; sleep 30\"")]
+    public async Task Stdio_TimeoutIsReported(string command)
     {
         SkipWithoutPosixShell();
-        var (exit, _, error) = await RunAsync("lint", "--stdio", "sleep 30", "--timeout", "1");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var (exit, _, error) = await RunAsync("lint", "--stdio", command, "--timeout", "2");
 
         Assert.Equal(ExitCodes.Error, exit);
-        Assert.Contains("didn't respond within 1 seconds", error, StringComparison.Ordinal);
+        Assert.Equal("error: The server didn't respond within 2 seconds.", error.TrimEnd());
+        // The SDK waits 5 seconds for a graceful exit by default; the limit is only loose enough for a busy CI machine.
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(4), watch.Elapsed.ToString());
     }
 
     [Fact]
@@ -534,8 +539,106 @@ public sealed class CliTests : IDisposable
             "lint", "--http", baseUrl + "/mcp", "--transport", "sse", "--header", "X-Api-Key: secret", "--timeout", "10");
 
         Assert.Equal(ExitCodes.Error, exit);
-        Assert.StartsWith("error:", error, StringComparison.Ordinal);
+        Assert.StartsWith("error: The server did not answer as a legacy SSE endpoint at this URL (HTTP ", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("SessionMode", error, StringComparison.Ordinal);
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(15), watch.Elapsed.ToString());
+    }
+
+    [Fact]
+    public async Task Http_TransportStreamableHttpAgainstLegacySseEndpoint_IsAnError()
+    {
+        var (app, baseUrl) = await StartHttpServerAsync(enableLegacySse: true);
+        await using var server = app;
+
+        var (exit, _, error) = await RunAsync(
+            "lint", "--http", baseUrl + "/mcp/sse", "--transport", "streamable-http", "--header", "X-Api-Key: secret", "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.StartsWith("error: The server did not answer as Streamable HTTP at this URL (HTTP ", error, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("sse", "legacy SSE endpoint")]
+    [InlineData("streamable-http", "as Streamable HTTP")]
+    public async Task Http_PinnedTransportAgainstHtmlPage_GetsTheTransportHint(string transport, string expected)
+    {
+        await using var stub = await StartStubAsync(context => Respond(context, 405, "<html><body><h1>405</h1><p>Not here</p></body></html>"));
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url, "--transport", transport, "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.Contains(expected, error, StringComparison.Ordinal);
+        Assert.Contains("(HTTP 405)", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("<", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Http_AutoTransportAgainstHtmlPage_ShowsAShortPreviewWithoutTags()
+    {
+        var body = "<!DOCTYPE html><html><head><title>Nope</title></head><body><h1>Not &amp; here</h1>\n<p>" + new string('x', 500) + "</p></body></html>";
+        await using var stub = await StartStubAsync(context => Respond(context, 405, body));
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url, "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.StartsWith($"error: HTTP 405 from {stub.Url}: \"Nope Not & here xxx", error, StringComparison.Ordinal);
+        Assert.EndsWith("...\".", error.TrimEnd(), StringComparison.Ordinal);
+        Assert.Single(error.TrimEnd().Split('\n'));
+        Assert.DoesNotContain("<", error, StringComparison.Ordinal);
+        Assert.True(error.Length < 400, $"{error.Length}");
+    }
+
+    [Fact]
+    public async Task Http_ServerError_HasNoTransportHint()
+    {
+        await using var stub = await StartStubAsync(context => Respond(context, 500, "boom"));
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url, "--transport", "sse", "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.Equal($"error: HTTP 500 from {stub.Url}: \"boom\".", error.TrimEnd());
+    }
+
+    [Fact]
+    public async Task Http_HostileBody_IsEscaped()
+    {
+        await using var stub = await StartStubAsync(context => Respond(context, 502, "bad \u001b[31mred\u001b[0m \u202E gateway"));
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url, "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.DoesNotContain('\u001b', error);
+        Assert.DoesNotContain('\u202E', error);
+        Assert.Contains("\\u001B[31mred", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Http_Unauthorized_SaysWhatTheServerWantsAndWhatToPass()
+    {
+        await using var stub = await StartStubAsync(context =>
+        {
+            context.Response.Headers.WWWAuthenticate = "Bearer resource_metadata=\"http://example.test/.well-known/x\"";
+            return Respond(context, 401, "");
+        });
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url + "?token=secret", "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.Equal(
+            $"error: 401 Unauthorized from {stub.Url}. The server wants authentication (WWW-Authenticate: Bearer resource_metadata=\"http://example.test/.well-known/x\"). Pass --header 'Authorization: Bearer <token>'.",
+            error.TrimEnd());
+    }
+
+    [Fact]
+    public async Task Http_UnauthorizedWithAuthorizationHeader_SaysTheCredentialsWereRejected()
+    {
+        await using var stub = await StartStubAsync(context => Respond(context, 401, ""));
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url, "--header", "authorization: Bearer nope", "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.Equal($"error: 401 Unauthorized from {stub.Url}. The credentials in --header were rejected.", error.TrimEnd());
+        Assert.DoesNotContain("nope", error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -574,6 +677,31 @@ public sealed class CliTests : IDisposable
         Assert.Contains("snapshot", output, StringComparison.Ordinal);
         Assert.Contains("diff", output, StringComparison.Ordinal);
         Assert.Contains("lint", output, StringComparison.Ordinal);
+    }
+
+    private static Task Respond(HttpContext context, int status, string body)
+    {
+        context.Response.StatusCode = status;
+        return context.Response.WriteAsync(body);
+    }
+
+    /// <summary>A plain HTTP server that answers every request with <paramref name="handler"/>, no MCP.</summary>
+    private static async Task<Stub> StartStubAsync(Func<HttpContext, Task> handler)
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Logging.ClearProviders();
+        var app = builder.Build();
+        app.MapFallback(new RequestDelegate(handler));
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        return new Stub(app, app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single() + "/mcp");
+    }
+
+    private sealed class Stub(WebApplication app, string url) : IAsyncDisposable
+    {
+        public string Url { get; } = url;
+
+        public ValueTask DisposeAsync() => app.DisposeAsync();
     }
 
     private static async Task<(WebApplication App, string BaseUrl)> StartHttpServerAsync(bool enableLegacySse = false)
