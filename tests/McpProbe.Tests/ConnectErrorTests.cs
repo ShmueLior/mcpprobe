@@ -41,6 +41,12 @@ public sealed class ConnectErrorTests
             "HTTP 500 from https://example.test/mcp: \"boom\"",
             ConnectError.Describe(Failure(HttpStatusCode.InternalServerError, "boom"), s_endpoint, HttpTransportMode.AutoDetect, false, null));
 
+    [Fact]
+    public void Describe_DropsATrailingSentencePeriodInsideThePreviewQuotes() =>
+        Assert.Equal(
+            "HTTP 404 from https://example.test/mcp: \"Profile 'nonexistent' not found\"",
+            ConnectError.Describe(Failure(HttpStatusCode.NotFound, "Profile 'nonexistent' not found."), s_endpoint, HttpTransportMode.AutoDetect, false, null));
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest, 400)]
     [InlineData(HttpStatusCode.NotFound, 404)]

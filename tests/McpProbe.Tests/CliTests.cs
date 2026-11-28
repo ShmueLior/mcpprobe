@@ -600,6 +600,17 @@ public sealed class CliTests : IDisposable
     }
 
     [Fact]
+    public async Task Http_PreviewEndingWithAPeriod_DoesNotGetASecondPeriodAfterTheQuote()
+    {
+        await using var stub = await StartStubAsync(context => Respond(context, 404, "Profile 'nonexistent' not found."));
+
+        var (exit, _, error) = await RunAsync("lint", "--http", stub.Url, "--timeout", "10");
+
+        Assert.Equal(ExitCodes.Error, exit);
+        Assert.Equal($"error: HTTP 404 from {stub.Url}: \"Profile 'nonexistent' not found\".", error.TrimEnd());
+    }
+
+    [Fact]
     public async Task Http_HostileBody_IsEscaped()
     {
         await using var stub = await StartStubAsync(context => Respond(context, 502, "bad \u001b[31mred\u001b[0m \u202E gateway"));

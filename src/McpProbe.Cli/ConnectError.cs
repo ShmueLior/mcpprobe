@@ -42,7 +42,20 @@ internal static partial class ConnectError
         }
 
         var preview = Preview(ex.Message);
-        return preview.Length == 0 ? $"HTTP {code} from {url}." : $"HTTP {code} from {url}: \"{preview}\"";
+        if (preview.Length == 0)
+        {
+            return $"HTTP {code} from {url}.";
+        }
+
+        // DescribeWithCauses puts a period after the whole line. A body that already ends with
+        // a period would then print as `"found.".` Keep a truncation ellipsis; drop only a
+        // trailing sentence period so the message period sits after the closing quote.
+        if (preview.EndsWith('.') && !preview.EndsWith("...", StringComparison.Ordinal))
+        {
+            preview = preview[..^1];
+        }
+
+        return $"HTTP {code} from {url}: \"{preview}\"";
     }
 
     /// <summary>The response body from an SDK exception message as one line: tags stripped when it is HTML, whitespace collapsed, at most 200 characters.</summary>
