@@ -14,7 +14,7 @@ internal static class HtmlReport
         ".banner{display:inline-block;padding:.25rem .75rem;border-radius:.25rem;font-weight:600;color:#fff}" +
         ".pass{background:#1a7f37}.fail{background:#cf222e}.note{background:#9a6700}" +
         "table{border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #d0d7de;padding:.35rem .6rem;text-align:left;vertical-align:top}" +
-        "th{background:#f6f8fa}td{overflow-wrap:anywhere}.error td:first-child,.breaking td:first-child{color:#cf222e;font-weight:600}" +
+        "th{background:#f6f8fa}td{overflow-wrap:anywhere}th:nth-child(1),th:nth-child(2),th:nth-child(6),td:nth-child(1),td:nth-child(2),td:nth-child(6){white-space:nowrap}.error td:first-child,.breaking td:first-child{color:#cf222e;font-weight:600}" +
         ".warning td:first-child,.non-breaking td:first-child{color:#9a6700;font-weight:600}";
 
     /// <param name="title">The page title and heading.</param>
