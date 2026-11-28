@@ -41,19 +41,19 @@ public static class ToolSnapshot
 
     /// <summary>Captures the client's tool surface and checks it against the default snapshot file.</summary>
     /// <param name="client">A connected client.</param>
-    /// <param name="options">Snapshot options.</param>
+    /// <param name="snapshotOptions">Snapshot options.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <param name="callerFilePath">Filled in by the compiler.</param>
     /// <returns>The diff between the snapshot and the current surface.</returns>
     /// <exception cref="McpProbeSnapshotException">The check failed.</exception>
     public static Task<ToolSurfaceDiff> VerifyAsync(
         McpClient client,
-        SnapshotOptions options,
+        SnapshotOptions snapshotOptions,
         CancellationToken cancellationToken = default,
         [CallerFilePath] string callerFilePath = "")
     {
-        ArgumentNullException.ThrowIfNull(options);
-        return VerifyAsync(client, DefaultFileName, options, cancellationToken, callerFilePath);
+        ArgumentNullException.ThrowIfNull(snapshotOptions);
+        return VerifyAsync(client, DefaultFileName, snapshotOptions, cancellationToken, callerFilePath);
     }
 
     /// <summary>Checks a captured surface against a snapshot file.</summary>
@@ -75,17 +75,17 @@ public static class ToolSnapshot
 
     /// <summary>Checks a captured surface against the default snapshot file.</summary>
     /// <param name="current">The current surface.</param>
-    /// <param name="options">Snapshot options.</param>
+    /// <param name="snapshotOptions">Snapshot options.</param>
     /// <param name="callerFilePath">Filled in by the compiler.</param>
     /// <returns>The diff between the snapshot and the current surface.</returns>
     /// <exception cref="McpProbeSnapshotException">The check failed.</exception>
     public static ToolSurfaceDiff Verify(
         ToolSurface current,
-        SnapshotOptions options,
+        SnapshotOptions snapshotOptions,
         [CallerFilePath] string callerFilePath = "")
     {
-        ArgumentNullException.ThrowIfNull(options);
-        return Verify(current, DefaultFileName, options, callerFilePath);
+        ArgumentNullException.ThrowIfNull(snapshotOptions);
+        return Verify(current, DefaultFileName, snapshotOptions, callerFilePath);
     }
 
     /// <summary>Gets the path of the file written next to a snapshot when the check fails.</summary>
