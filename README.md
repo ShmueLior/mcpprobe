@@ -194,7 +194,29 @@ jobs:
           baseline: mcp-tools.json
 ```
 
-Inputs follow the CLI: `stdio`, `http`, or `from-file` (exactly one), plus `baseline` (default `mcp-tools.json`), `header`, `env`, `cwd`, `timeout`, `diff`, `lint`, `fail-on-non-breaking`, `fail-on`, `nested`, `rule`, `min-description-length`, `version`, and `source`. Both `diff` and `lint` are on by default. The Action fails the step on a breaking change or a lint finding at or above `--fail-on` (default `warning`).
+Inputs follow the CLI: `stdio`, `http`, or `from-file` (exactly one), plus `baseline` (default `mcp-tools.json`), `header`, `env`, `cwd`, `timeout`, `diff`, `lint`, `fail-on-non-breaking`, `fail-on`, `nested`, `rule`, `min-description-length`, `strict`, `transport`, `report`, `version`, and `source`. Both `diff` and `lint` are on by default. The Action fails the step on a breaking change or a lint finding at or above `--fail-on` (default `warning`).
+
+`strict`, `transport`, and `report` are off by default, so an unchanged workflow runs the same commands as before. `strict` is lint-only. `transport` is only used with `http`. `report` is a directory, not a file: the Action writes `lint.html` and/or `diff.html` there (both checks run by default, so a single file path would overwrite one report with the other). The job summary stays the plain-text report. Upload is left to your workflow.
+
+`strict` and `transport` already work against the 0.3.0-preview CLI. `report` needs a CLI that has `--report`, which 0.3.0-preview does not. If you set `report` and the installed tool lacks the flag, the Action fails fast with a message instead of a generic "unrecognized option". Until 0.4 is published, use `uses: ./` with `source:` pointing at a just-packed folder, or pin a later tag that includes these inputs. Do not add these inputs to a workflow that pins `ShmueLior/mcpprobe@v0.3.0-preview`; that tag's wrapper does not have them.
+
+```yaml
+      - name: Check MCP tool surface
+        id: mcpprobe
+        uses: ShmueLior/mcpprobe@<tag-that-includes-these-inputs>
+        with:
+          stdio: dotnet run --no-build --project src/MyServer -c Release
+          baseline: mcp-tools.json
+          strict: true
+          report: mcpprobe-reports
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mcpprobe-reports
+          path: mcpprobe-reports/
+```
+
+The `lint-report` and `diff-report` outputs are the paths of the files that were written (empty if that check did not write one).
 
 ### Azure Pipelines
 
@@ -221,7 +243,17 @@ steps:
       baseline: mcp-tools.json
 ```
 
-The template needs bash (Git Bash on Windows). If you cannot reference the GitHub repo, install the tool and run the same commands yourself:
+The template needs bash (Git Bash on Windows). It also accepts `strict`, `transport`, and `report` (`report` is a directory, as in the Action). Do not add those parameters to a pipeline that pins `refs/tags/v0.3.0-preview`; that tag's template does not have them. Upload is a separate step; the template does not publish an artifact:
+
+```yaml
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    inputs:
+      targetPath: mcpprobe-reports
+      artifact: mcpprobe-reports
+```
+
+If you cannot reference the GitHub repo, install the tool and run the same commands yourself:
 
 ```yaml
 - task: UseDotNet@2

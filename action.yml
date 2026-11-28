@@ -76,6 +76,23 @@ inputs:
     description: Minimum tool description length for MCPP002. Leave empty to use the CLI default (20).
     required: false
     default: ''
+  strict:
+    description: Also run schema-portability lint rules MCPP009-MCPP012 (lint only). Off by default.
+    required: false
+    default: 'false'
+  transport:
+    description: >-
+      Pin the HTTP transport: auto, streamable-http, or sse. Only used with http.
+      Leave empty to use the CLI default (auto).
+    required: false
+    default: ''
+  report:
+    description: >-
+      Directory where HTML reports are written (lint.html and/or diff.html). This
+      input is a directory, not a file; the CLI --report flag takes a file. Leave
+      empty to skip writing HTML files. Requires a CLI that has --report.
+    required: false
+    default: ''
   version:
     description: >-
       Exact McpProbe.Cli version to install. Defaults to the same version as this
@@ -99,6 +116,12 @@ outputs:
   lint-exit:
     description: Exit code of mcpprobe lint. Empty if lint was skipped.
     value: ${{ steps.mcpprobe.outputs.lint-exit }}
+  lint-report:
+    description: Path to lint.html if that file was written. Empty otherwise.
+    value: ${{ steps.mcpprobe.outputs.lint-report }}
+  diff-report:
+    description: Path to diff.html if that file was written. Empty otherwise.
+    value: ${{ steps.mcpprobe.outputs.diff-report }}
 
 runs:
   using: composite
@@ -122,6 +145,9 @@ runs:
         MCPPROBE_NESTED: ${{ inputs.nested }}
         MCPPROBE_RULE: ${{ inputs.rule }}
         MCPPROBE_MIN_DESCRIPTION_LENGTH: ${{ inputs.min-description-length }}
+        MCPPROBE_STRICT: ${{ inputs.strict }}
+        MCPPROBE_TRANSPORT: ${{ inputs.transport }}
+        MCPPROBE_REPORT: ${{ inputs.report }}
         MCPPROBE_VERSION: ${{ inputs.version }}
         MCPPROBE_SOURCE: ${{ inputs.source }}
       run: bash "$GITHUB_ACTION_PATH/action/run.sh"

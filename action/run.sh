@@ -10,6 +10,8 @@ SUMMARY_REPORT_LIMIT=204800
 conclusion=error
 diff_exit=
 lint_exit=
+lint_report=
+diff_report=
 ado_summary_file=
 
 # shellcheck disable=SC2317 # invoked from the EXIT trap
@@ -21,6 +23,8 @@ write_github_outputs() {
     printf 'conclusion=%s\n' "$conclusion"
     printf 'diff-exit=%s\n' "$diff_exit"
     printf 'lint-exit=%s\n' "$lint_exit"
+    printf 'lint-report=%s\n' "$lint_report"
+    printf 'diff-report=%s\n' "$diff_report"
   } >> "$GITHUB_OUTPUT" || true
 }
 
@@ -55,6 +59,14 @@ is_true() {
     true|True|TRUE|yes|YES|y|Y|1) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+# Trim leading and trailing whitespace. bash 3.2-safe (no ${var,,}).
+trim_ws() {
+  local s=${1-}
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
 }
 
 # Convert paths for Git Bash on Windows. No-op when cygpath is not available.
@@ -150,6 +162,31 @@ if [[ "$run_diff" != true && "$run_lint" != true ]]; then
   die "Enable at least one of diff or lint."
 fi
 
+transport=$(trim_ws "${MCPPROBE_TRANSPORT:-}")
+if [[ -n "$transport" && -z "${MCPPROBE_HTTP:-}" ]]; then
+  die "transport can only be used with http."
+fi
+
+report_dir=$(trim_ws "${MCPPROBE_REPORT:-}")
+if [[ -n "$report_dir" ]]; then
+  # Strip trailing slashes before the .html / existing-file checks so
+  # mcp-lint.html/ is rejected the same way as mcp-lint.html.
+  if [[ "$report_dir" != / ]]; then
+    while [[ "$report_dir" == */ ]]; do
+      report_dir="${report_dir%/}"
+    done
+  fi
+  report_lower=$(printf '%s' "$report_dir" | tr '[:upper:]' '[:lower:]')
+  case "$report_lower" in
+    *.html|*.htm)
+      die "The report input is a directory (the CLI --report flag takes a file; both checks run by default). Use a directory such as mcpprobe-reports, not a .html path."
+      ;;
+  esac
+  if [[ -e "$report_dir" && ! -d "$report_dir" ]]; then
+    die "The report input is a directory (the CLI --report flag takes a file; both checks run by default). '$report_dir' exists and is not a directory."
+  fi
+fi
+
 version="${MCPPROBE_VERSION:-}"
 if [[ -z "$version" ]]; then
   script_dir=$(cd "$(dirname "$0")" && pwd)
@@ -206,6 +243,39 @@ if ! command -v mcpprobe >/dev/null 2>&1; then
   die "mcpprobe was not found on PATH after installing McpProbe.Cli $version."
 fi
 
+cli_help=
+ensure_cli_help() {
+  if [[ -z "$cli_help" ]]; then
+    if ! cli_help=$(mcpprobe lint --help 2>&1); then
+      die "mcpprobe lint --help failed after installing McpProbe.Cli $version."
+    fi
+  fi
+}
+
+require_cli_flag() {
+  local input_name=$1
+  local flag=$2
+  ensure_cli_help
+  case "$cli_help" in
+    *"$flag"*) return 0 ;;
+  esac
+  die "The $input_name input needs a McpProbe.Cli that supports $flag. The installed version is $version, and it does not have that flag. Leave $input_name empty, or set version / source to a build that includes $flag (this repository's packed artifacts, or a later release)."
+}
+
+if [[ -n "$report_dir" ]]; then
+  require_cli_flag report --report
+fi
+if is_true "${MCPPROBE_STRICT:-}" && [[ "$run_lint" == true ]]; then
+  require_cli_flag strict --strict
+fi
+if [[ -n "$transport" ]]; then
+  require_cli_flag transport --transport
+fi
+
+if [[ -n "$report_dir" ]]; then
+  mkdir -p "$report_dir" || die "Could not create the report directory '$report_dir'."
+fi
+
 common_args=()
 if [[ -n "${MCPPROBE_STDIO:-}" ]]; then
   common_args+=(--stdio "$MCPPROBE_STDIO")
@@ -222,6 +292,7 @@ done < <(each_nonempty_line "${MCPPROBE_HEADER:-}")
 while IFS= read -r line; do
   common_args+=(--env "$line")
 done < <(each_nonempty_line "${MCPPROBE_ENV:-}")
+[[ -n "$transport" ]] && common_args+=(--transport "$transport")
 
 run_mcpprobe() {
   local title=$1
@@ -251,8 +322,12 @@ run_mcpprobe() {
 if [[ "$run_diff" == true ]]; then
   diff_args=(diff --baseline "${MCPPROBE_BASELINE:-mcp-tools.json}" "${common_args[@]}")
   is_true "${MCPPROBE_FAIL_ON_NON_BREAKING:-}" && diff_args+=(--fail-on-non-breaking)
+  [[ -n "$report_dir" ]] && diff_args+=(--report "$report_dir/diff.html")
   diff_exit=0
   run_mcpprobe "McpProbe diff" "${diff_args[@]}" || diff_exit=$?
+  if [[ -n "$report_dir" && -f "$report_dir/diff.html" && "$diff_exit" -ne 2 ]]; then
+    diff_report="$report_dir/diff.html"
+  fi
 fi
 
 if [[ "$run_lint" == true ]]; then
@@ -263,8 +338,13 @@ if [[ "$run_lint" == true ]]; then
   while IFS= read -r line; do
     lint_args+=(--rule "$line")
   done < <(each_nonempty_line "${MCPPROBE_RULE:-}")
+  is_true "${MCPPROBE_STRICT:-}" && lint_args+=(--strict)
+  [[ -n "$report_dir" ]] && lint_args+=(--report "$report_dir/lint.html")
   lint_exit=0
   run_mcpprobe "McpProbe lint" "${lint_args[@]}" || lint_exit=$?
+  if [[ -n "$report_dir" && -f "$report_dir/lint.html" && "$lint_exit" -ne 2 ]]; then
+    lint_report="$report_dir/lint.html"
+  fi
 fi
 
 set -e
