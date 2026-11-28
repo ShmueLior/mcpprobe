@@ -325,7 +325,7 @@ if [[ "$run_diff" == true ]]; then
   [[ -n "$report_dir" ]] && diff_args+=(--report "$report_dir/diff.html")
   diff_exit=0
   run_mcpprobe "McpProbe diff" "${diff_args[@]}" || diff_exit=$?
-  if [[ -n "$report_dir" && -f "$report_dir/diff.html" ]]; then
+  if [[ -n "$report_dir" && -f "$report_dir/diff.html" && "$diff_exit" -ne 2 ]]; then
     diff_report="$report_dir/diff.html"
   fi
 fi
@@ -342,7 +342,7 @@ if [[ "$run_lint" == true ]]; then
   [[ -n "$report_dir" ]] && lint_args+=(--report "$report_dir/lint.html")
   lint_exit=0
   run_mcpprobe "McpProbe lint" "${lint_args[@]}" || lint_exit=$?
-  if [[ -n "$report_dir" && -f "$report_dir/lint.html" ]]; then
+  if [[ -n "$report_dir" && -f "$report_dir/lint.html" && "$lint_exit" -ne 2 ]]; then
     lint_report="$report_dir/lint.html"
   fi
 fi
